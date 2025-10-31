@@ -24,7 +24,7 @@ export default function UserProfilePage() {
       try {
         const [userRes, postsRes] = await Promise.all([
           http.get<any>(`/api/v1/users/${params.userId}`).catch(() => null),
-          socialApi.getPosts().catch(() => null),
+          socialApi.posts().catch(() => null),
         ]);
         if (!mounted) return;
         

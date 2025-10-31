@@ -81,7 +81,7 @@ export default function SocialPage() {
     let mounted = true;
     (async () => {
       try {
-        const res = await socialApi.getPosts();
+        const res = await socialApi.posts();
         const items = res?.data?.posts || res?.posts || res?.data || (Array.isArray(res) ? res : []);
         if (mounted) {
           setPosts(items);
@@ -134,11 +134,11 @@ export default function SocialPage() {
 
   const handleLike = async (postId: string) => {
     try {
-      await socialApi.likePost(postId);
+      await socialApi.like(postId);
       setLiked((prev) => ({ ...prev, [postId]: !prev[postId] }));
       // Refetch the post to get updated like count
       try {
-        const res = await socialApi.getPosts();
+        const res = await socialApi.posts();
         const items = res?.data?.posts || res?.posts || res?.data || (Array.isArray(res) ? res : []);
         const updatedPost = items.find((p: Post) => p.id === postId);
         if (updatedPost) {
@@ -274,7 +274,7 @@ export default function SocialPage() {
                       <UserPlus className="h-4 w-4 mr-2" />
                       {followed[post.author.id] ? 'Siguiendo' : 'Seguir'}
                     </Button>
-                  ) : null}
+                  )}
                   {currentUserId && post.userId === currentUserId && (
                     <Button 
                       variant="ghost" 
@@ -316,7 +316,7 @@ export default function SocialPage() {
               {/* Comments Section */}
               {showComments[post.id] && comments[post.id] && (
                 <div className="mt-4 space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                  {comments[post.id].map((comment) => (
+                  {comments[post.id]?.map((comment) => (
                     <div key={comment.id} className="flex items-start gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={comment.author?.avatar} />
@@ -349,7 +349,7 @@ export default function SocialPage() {
                         {/* Replies */}
                         {comment.replies && comment.replies.length > 0 && (
                           <div className="mt-2 ml-4 space-y-2 border-l-2 border-slate-200 dark:border-slate-700 pl-3">
-                            {comment.replies.map((reply) => (
+                            {comment.replies?.map((reply) => (
                               <div key={reply.id} className="flex items-start gap-2">
                                 <Avatar className="h-6 w-6">
                                   <AvatarImage src={reply.author?.avatar} />
@@ -439,7 +439,7 @@ export default function SocialPage() {
       </Dialog>
 
       {/* Error Dialog */}
-      <AlertDialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog({ open, message: errorDialog.message })}>
+      <AlertDialog open={errorDialog.open} onOpenChange={(open: boolean) => setErrorDialog({ open, message: errorDialog.message })}>
         <AlertDialogContent className="glass-card">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-slate-900 dark:text-white">{t('errors.error')}</AlertDialogTitle>
@@ -456,7 +456,7 @@ export default function SocialPage() {
       </AlertDialog>
 
       {/* Delete Post Dialog */}
-      <AlertDialog open={deletePostDialog.open} onOpenChange={(open) => setDeletePostDialog({ open, postId: deletePostDialog.postId })}>
+      <AlertDialog open={deletePostDialog.open} onOpenChange={(open: boolean) => setDeletePostDialog({ open, postId: deletePostDialog.postId })}>
         <AlertDialogContent className="glass-card">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-slate-900 dark:text-white">{t('social.confirmDeletePost')}</AlertDialogTitle>
@@ -476,7 +476,7 @@ export default function SocialPage() {
       </AlertDialog>
 
       {/* Delete Comment Dialog */}
-      <AlertDialog open={deleteCommentDialog.open} onOpenChange={(open) => setDeleteCommentDialog({ open, postId: deleteCommentDialog.postId, commentId: deleteCommentDialog.commentId })}>
+      <AlertDialog open={deleteCommentDialog.open} onOpenChange={(open: boolean) => setDeleteCommentDialog({ open, postId: deleteCommentDialog.postId, commentId: deleteCommentDialog.commentId })}>
         <AlertDialogContent className="glass-card">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-slate-900 dark:text-white">{t('social.confirmDeleteComment')}</AlertDialogTitle>

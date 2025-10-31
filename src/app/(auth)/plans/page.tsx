@@ -74,13 +74,13 @@ export default function PlansPage() {
 
               <CardContent className="space-y-4">
                 <ul className="space-y-3">
-                  {plan.features.map((feature, index) => (
+                  {plan.features.map((feature: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-slate-700 dark:text-slate-300">
                       <Check className="h-5 w-5 text-emerald-500 flex-shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
                     </li>
                   ))}
-                  {plan.limitations?.map((limitation, index) => (
+                  {plan.limitations?.map((limitation: string, index: number) => (
                     <li key={index} className="flex items-start gap-2 text-slate-500 dark:text-slate-500">
                       <Check className="h-5 w-5 text-slate-400 dark:text-slate-600 flex-shrink-0 mt-0.5" />
                       <span className="text-sm">{limitation}</span>

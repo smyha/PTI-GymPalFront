@@ -272,7 +272,6 @@ const resources = {
         success: 'Éxito',
         yes: 'Sí',
         no: 'No',
-        ok: 'Aceptar',
         comingSoon: 'Próximamente',
       },
       app: { name: 'GymPal' },
