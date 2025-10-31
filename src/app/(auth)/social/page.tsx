@@ -396,7 +396,6 @@ export default function SocialPage() {
           <div className="text-slate-400">No hay publicaciones.</div>
         )}
       </div>
-      </div>
 
       {/* Publish Post Modal */}
       <Dialog open={publishModalOpen} onOpenChange={setPublishModalOpen}>

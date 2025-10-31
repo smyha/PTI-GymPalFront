@@ -182,6 +182,7 @@ export default function ProfilePage() {
   };
 
   return (
+    <>
     <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
@@ -434,6 +435,7 @@ export default function ProfilePage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </>
   );
 }
 
