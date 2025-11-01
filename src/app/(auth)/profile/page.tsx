@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Fragment } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Edit, Settings, Award, TrendingUp, Calendar } from 'lucide-react';
@@ -182,8 +182,8 @@ export default function ProfilePage() {
   };
 
   return (
-    <>
-    <div className="space-y-8">
+    <Fragment>
+      <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-slate-900 dark:text-white mb-2">Perfil Personal</h1>
@@ -434,8 +434,7 @@ export default function ProfilePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-    </>
+    </Fragment>
   );
 }
 
