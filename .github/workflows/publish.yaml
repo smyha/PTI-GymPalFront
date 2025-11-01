@@ -2,10 +2,7 @@ name: CI/CD GymPal Frontend Pipeline
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
-      - 'v*.*'
-      - 'v*'
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -19,8 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch all history for tags
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -40,15 +35,9 @@ jobs:
         run: |
           echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
-      - name: Set tag name
+      - name: Set SHA tag
         id: vars
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            TAG_NAME=${GITHUB_REF#refs/tags/}
-            echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
-          else
-            echo "tag=latest" >> $GITHUB_OUTPUT
-          fi
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       
       # Push Docker image to GitHub Container Registry
       - name: Build and push Docker image
@@ -59,7 +48,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ steps.lower.outputs.owner }}/gympalfrontend-frontend:${{ steps.vars.outputs.tag }}
+            ghcr.io/${{ steps.lower.outputs.owner }}/gympalfrontend-frontend:${{ steps.vars.outputs.sha_short }}
             ghcr.io/${{ steps.lower.outputs.owner }}/gympalfrontend-frontend:latest
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
