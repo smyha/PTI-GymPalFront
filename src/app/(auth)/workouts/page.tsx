@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dumbbell, Plus, List, ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,11 +24,13 @@ export default function WorkoutsPage() {
   const [visibleRoutines, setVisibleRoutines] = useState(6);
   const [routineToDelete, setRoutineToDelete] = useState<string | null>(null);
   const [routines, setRoutines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
+        setLoading(true);
         const list = await workoutsApi.list();
         if (!mounted) return;
         const items = Array.isArray(list?.items) ? list.items : Array.isArray(list) ? list : [];
@@ -35,6 +38,8 @@ export default function WorkoutsPage() {
       } catch {
         if (!mounted) return;
         setRoutines([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
@@ -59,8 +64,8 @@ export default function WorkoutsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-slate-900 dark:text-white mb-2">{t('workouts.title')}</h1>
-          <p className="text-slate-600 dark:text-slate-400">{t('workouts.subtitle')}</p>
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">{t('workouts.title')}</h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400">{t('workouts.subtitle')}</p>
         </div>
         <Link href="/workouts/new">
           <Button className="bg-emerald-500 hover:bg-emerald-600 text-white">
@@ -99,7 +104,7 @@ export default function WorkoutsPage() {
 
       {/* Routines List */}
       <div>
-        <h2 className="text-slate-900 dark:text-white mb-4">{t('workouts.title')}</h2>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-6">{t('workouts.title')}</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
           {routines.slice(0, visibleRoutines).map((routine: any) => {
             const id = String(routine.id || routine.uuid || routine._id);

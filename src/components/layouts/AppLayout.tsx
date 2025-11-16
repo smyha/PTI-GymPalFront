@@ -1,12 +1,13 @@
 "use client";
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Dumbbell, Utensils, Users, Calendar, TrendingUp, User, CreditCard, Zap, Activity } from 'lucide-react';
+import { Home, Dumbbell, Users, Calendar, TrendingUp, User, CreditCard, Zap, Activity } from 'lucide-react';
 import ChatWidget from '@/components/shared/ChatWidget';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface AppLayoutProps {
   children?: ReactNode;
@@ -14,19 +15,27 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const { t } = useTranslation();
-  
+  const pathname = usePathname();
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Show loading spinner when navigating between routes
+  useEffect(() => {
+    // Show loading briefly when pathname changes
+    setIsLoading(true);
+    const timer = setTimeout(() => setIsLoading(false), 300);
+    return () => clearTimeout(timer);
+  }, [pathname]);
+
   const navItems = [
     { icon: Home, label: t('nav.home'), path: '/dashboard' },
     { icon: Zap, label: t('nav.today'), path: '/workouts/today' },
     { icon: Dumbbell, label: t('nav.workouts'), path: '/workouts' },
-    { icon: Utensils, label: t('nav.diets'), path: '/diet' },
     { icon: Users, label: t('nav.social'), path: '/social' },
     { icon: Calendar, label: t('nav.calendar'), path: '/calendar' },
     { icon: TrendingUp, label: t('nav.progress'), path: '/progress' },
     { icon: User, label: t('nav.profile'), path: '/profile' },
     { icon: CreditCard, label: t('nav.plans'), path: '/plans' },
   ];
-  const pathname = usePathname() || '/';
 
   // Helper function to check if a nav item is active, prioritizing more specific routes
   const isNavItemActive = (itemPath: string) => {
@@ -89,7 +98,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
+        {/* Loading Spinner Overlay */}
+        {isLoading && (
+          <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-40 pointer-events-none">
+            <LoadingSpinner size="lg" variant="dumbbell" />
+          </div>
+        )}
         {children}
       </main>
 

@@ -19,10 +19,16 @@ async function refreshAccessToken(): Promise<string | null> {
       apiLogger.warn({ status: res.status }, 'Refresh token request failed');
       return null;
     }
-    const data = await res.json().catch(() => null);
-    const token = data?.data?.token || data?.token;
+    const response = await res.json().catch(() => null);
+    // Backend wraps auth response in ApiResponse.data, and returns new tokens
+    const authData = response?.data;
+    const token = authData?.token;
     if (token) {
-      saveTokens({ accessToken: token, refreshToken: refresh });
+      // Save new tokens from refresh response
+      saveTokens({
+        accessToken: token,
+        refreshToken: authData?.refreshToken || refresh
+      });
       apiLogger.info({ durationMs: Date.now() - startedAt }, 'Access token refreshed');
       return token as string;
     }

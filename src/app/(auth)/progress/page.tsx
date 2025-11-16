@@ -63,8 +63,8 @@ export default function ProgressPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white mb-2">{t('progress.title')}</h1>
-        <p className="text-slate-400">{t('progress.subtitle')}</p>
+        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">{t('progress.title')}</h1>
+        <p className="text-lg text-slate-600 dark:text-slate-400">{t('progress.subtitle')}</p>
       </div>
 
       {/* Top Stats Cards */}

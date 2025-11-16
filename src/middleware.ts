@@ -2,13 +2,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
   const { pathname } = req.nextUrl;
 
+  // Protected routes that require authentication
   const protectedPaths = [
-    '/dashboard', 
-    '/workouts', 
-    '/profile', 
+    '/dashboard',
+    '/workouts',
+    '/profile',
     '/exercises',
     '/diet',
     '/social',
@@ -17,30 +17,44 @@ export async function middleware(req: NextRequest) {
     '/plans',
     '/progress'
   ];
-  const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path));
-  
-  const isLoggedIn = Boolean(
-    req.cookies.get('sb-access-token')?.value ||
-    req.cookies.get('access_token')?.value
-  );
 
-  // Protect authenticated routes
-  if (isProtectedPath && !isLoggedIn) {
+  // Routes only for unauthenticated users
+  const authPaths = ['/login', '/register'];
+  const onboardingPaths = ['/onboarding'];
+
+  // Check if current path matches protected routes
+  const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path));
+
+  // Check if current path is an auth route
+  const isAuthPath = authPaths.some((path) => pathname.startsWith(path));
+
+  // Check if current path is onboarding
+  const isOnboardingPath = onboardingPaths.some((path) => pathname.startsWith(path));
+
+  // Check for backend JWT token in cookies (set by frontend after login)
+  const accessToken = req.cookies.get('access_token')?.value;
+  const isAuthenticated = !!accessToken;
+
+  // Protect authenticated routes - redirect to login if no token
+  if (isProtectedPath && !isAuthenticated) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Redirect authenticated users away from register page (but allow login page)
-  if (pathname.startsWith('/register') && isLoggedIn) {
+  // Redirect authenticated users away from auth pages
+  if (isAuthPath && isAuthenticated) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  // Allow onboarding only for non-authenticated users (after registration)
-  // If authenticated, redirect to dashboard
-  if (pathname.startsWith('/onboarding') && isLoggedIn) {
+  // Redirect authenticated users away from onboarding
+  if (isOnboardingPath && isAuthenticated) {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  return res;
+  return NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  });
 }
 
 export const config = {

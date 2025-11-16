@@ -1,61 +1,31 @@
-import axios from 'axios';
-import { config } from '@/config';
-import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from '@/lib/utils/auth';
-import { endpoints } from './endpoints';
+import axios, { AxiosInstance } from 'axios';
+import { API_BASE_URL, API_TIMEOUT } from '../utils/constants';
 
-const base = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_API_URL) || config.apiBaseUrl || '';
-export const apiClient = axios.create({
-  baseURL: base.replace(/\/$/, ''),
-  headers: { 'Content-Type': 'application/json' },
+/**
+ * Create an Axios instance configured for API requests
+ */
+export const apiClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-apiClient.interceptors.request.use((req) => {
-  const token = getAccessToken();
-  if (token) req.headers.Authorization = `Bearer ${token}`;
-  return req;
-});
-
-let refreshing: Promise<string | null> | null = null;
-
-apiClient.interceptors.response.use(
-  (res) => res,
-  async (error) => {
-    const { response, config: original } = error || {};
-    if (response?.status === 401 && !original.__isRetry) {
-      original.__isRetry = true;
-      if (!refreshing) {
-        const refresh = getRefreshToken();
-        refreshing = (async () => {
-          if (!refresh) return null;
-          try {
-            const res = await axios.post(
-              `${(config.apiBaseUrl || '').replace(/\/$/, '')}${endpoints.auth.refresh}`,
-              { refresh_token: refresh },
-              { headers: { 'Content-Type': 'application/json' } }
-            );
-            const token = res?.data?.data?.token || res?.data?.token;
-            if (token) {
-              saveTokens({ accessToken: token, refreshToken: refresh });
-              return token as string;
-            }
-            return null;
-          } catch {
-            return null;
-          } finally {
-            // reset gate after completion
-            setTimeout(() => (refreshing = null), 0);
-          }
-        })();
-      }
-      const newToken = await refreshing;
-      if (newToken) {
-        original.headers.Authorization = `Bearer ${newToken}`;
-        return apiClient.request(original);
-      }
-      clearTokens();
-    }
-    return Promise.reject(error);
+/**
+ * Set authorization token for API requests
+ */
+export function setAuthToken(token: string | null) {
+  if (token) {
+    apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete apiClient.defaults.headers.common['Authorization'];
   }
-);
+}
 
-
+/**
+ * Get current authorization token
+ */
+export function getAuthToken(): string | null {
+  return apiClient.defaults.headers.common['Authorization'] as string | null;
+}

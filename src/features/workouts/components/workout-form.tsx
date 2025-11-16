@@ -2,33 +2,27 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { CreateWorkoutSchema, type CreateWorkout } from '@/schemas/workout.schema';
+import { createWorkoutSchema, type CreateWorkoutFormData } from '../schemas/workout.schema';
 import { useCreateWorkout } from '../hooks/use-workouts';
 
 export function WorkoutForm() {
   const { mutate: createWorkout, isPending } = useCreateWorkout();
 
-  const form = useForm<CreateWorkout>({
-    resolver: zodResolver(CreateWorkoutSchema),
+  const form = useForm<CreateWorkoutFormData>({
+    resolver: zodResolver(createWorkoutSchema),
     defaultValues: {
       name: '',
       description: '',
       exercises: [],
-      date: new Date().toISOString(),
-      duration: 60,
-      isPublic: false,
-      tags: [],
     },
   });
 
-  const onSubmit = (data: CreateWorkout) => {
+  const onSubmit = (data: CreateWorkoutFormData) => {
     createWorkout(data);
   };
 
@@ -70,54 +64,14 @@ export function WorkoutForm() {
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <div className="flex items-center">
-                        <Calendar className="mr-2 h-4 w-4" />
-                        <Input type="datetime-local" {...field} />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Duration (minutes)</FormLabel>
-                    <FormControl>
-                      <div className="flex items-center">
-                        <Clock className="mr-2 h-4 w-4" />
-                        <Input type="number" min="1" max="300" {...field} onChange={(e) => field.onChange(parseInt(e.target.value))} />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="isPublic"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Public Workout</FormLabel>
-                    <FormDescription>Allow others to see and use this workout</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
+              name="exercises"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Exercises</FormLabel>
+                  <FormDescription>Add at least one exercise to your workout</FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />

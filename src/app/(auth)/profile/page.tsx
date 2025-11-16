@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState, Fragment } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, Edit, Settings, Award, TrendingUp, Calendar } from 'lucide-react';
+import { User, Edit, Settings, Award, TrendingUp, Calendar, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { logout } from '@/features/auth/api/api';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +33,7 @@ import { http } from '@/lib/http';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
+  const router = useRouter();
 
   const [profile, setProfile] = useState<any>(null);
   const [personalInfo, setPersonalInfo] = useState<any>(null);
@@ -38,7 +41,28 @@ export default function ProfilePage() {
   const [isEditStatsDialogOpen, setIsEditStatsDialogOpen] = useState(false);
   const [editedStats, setEditedStats] = useState({ weight: '', height: '', age: '' });
   const [isSavingStats, setIsSavingStats] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [errorDialog, setErrorDialog] = useState<{ open: boolean; message: string }>({ open: false, message: '' });
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      // Clear localStorage
+      localStorage.removeItem('user_name');
+      localStorage.removeItem('user_email');
+      localStorage.removeItem('user_id');
+      // Redirect to login
+      router.push('/login');
+    } catch (err: any) {
+      console.error('Error logging out:', err);
+      const errorMessage = err?.message || t('errors.logoutError');
+      setErrorDialog({ open: true, message: errorMessage });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -186,16 +210,25 @@ export default function ProfilePage() {
       <div className="space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-slate-900 dark:text-white mb-2">Perfil Personal</h1>
-            <p className="text-slate-600 dark:text-slate-400">Gestiona tu información y preferencias</p>
+            <h1 className="text-slate-900 dark:text-white mb-2">Personal Profile</h1>
+            <p className="text-slate-600 dark:text-slate-400">Manage your information and preferences</p>
           </div>
           <div className="flex gap-2">
             <Link href="/profile/settings">
               <Button variant="outline" className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300">
                 <Settings className="h-4 w-4 mr-2" />
-                Configuración
+                Settings
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              className="border-red-300 dark:border-red-600 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {isLoggingOut ? 'Logging out...' : 'Log Out'}
+            </Button>
           </div>
         </div>
 
@@ -215,7 +248,7 @@ export default function ProfilePage() {
                 <div className="flex gap-4">
                   {memberSince && (
                     <div>
-                      <p className="text-slate-600 dark:text-slate-400 text-sm">Miembro desde</p>
+                      <p className="text-slate-600 dark:text-slate-400 text-sm">Member since</p>
                       <p className="text-slate-900 dark:text-white">{memberSince}</p>
                     </div>
                   )}
@@ -232,29 +265,29 @@ export default function ProfilePage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-slate-900 dark:text-white flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-emerald-500" />
-                  Estadísticas Físicas
+                  Physical Statistics
                 </CardTitle>
                 <Button variant="ghost" size="sm" onClick={handleOpenEditStats} className="text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10">
                   <Edit className="h-4 w-4 mr-1" />
-                  Editar
+                  Edit
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Peso</span>
+                <span className="text-slate-600 dark:text-slate-400">Weight</span>
                 <span className="text-slate-900 dark:text-white">{personalInfo?.weight_kg ?? '—'} kg</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Altura</span>
+                <span className="text-slate-600 dark:text-slate-400">Height</span>
                 <span className="text-slate-900 dark:text-white">{personalInfo?.height_cm ?? '—'} cm</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Edad</span>
-                <span className="text-slate-900 dark:text-white">{personalInfo?.age ?? '—'} años</span>
+                <span className="text-slate-600 dark:text-slate-400">Age</span>
+                <span className="text-slate-900 dark:text-white">{personalInfo?.age ?? '—'} years</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">IMC</span>
+                <span className="text-slate-600 dark:text-slate-400">BMI</span>
                 <span className="text-slate-900 dark:text-white">{bmi || '—'}</span>
               </div>
             </CardContent>
@@ -264,38 +297,38 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-blue-500" />
-                Actividad
+                Activity
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Total entrenamientos</span>
+                <span className="text-slate-600 dark:text-slate-400">Total workouts</span>
                 <span className="text-slate-900 dark:text-white">{workoutCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Total ejercicios</span>
+                <span className="text-slate-600 dark:text-slate-400">Total exercises</span>
                 <span className="text-slate-900 dark:text-white">{exerciseCount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-600 dark:text-slate-400">Total publicaciones</span>
+                <span className="text-slate-600 dark:text-slate-400">Total posts</span>
                 <span className="text-slate-900 dark:text-white">{postCount}</span>
               </div>
             </CardContent>
           </Card>
 
-          {/* Nivel: se muestra sólo si hay datos */}
+          {/* Level: shown only if data available */}
           {profile?.level && profile?.xp && (
             <Card className="bg-white/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700">
               <CardHeader>
                 <CardTitle className="text-slate-900 dark:text-white flex items-center gap-2">
                   <Award className="h-5 w-5 text-yellow-500" />
-                  Nivel
+                  Level
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
                   <div className="flex justify-between mb-2">
-                    <span className="text-slate-900 dark:text-white">Nivel {profile.level}</span>
+                    <span className="text-slate-900 dark:text-white">Level {profile.level}</span>
                     <span className="text-slate-600 dark:text-slate-400">{profile.xp?.current} / {profile.xp?.next} XP</span>
                   </div>
                   <Progress value={Number(profile.xp?.percent || 0)} className="h-2" />
@@ -311,7 +344,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="text-slate-900 dark:text-white flex items-center gap-2">
                 <Award className="h-5 w-5 text-yellow-500" />
-                Logros Desbloqueados
+                Unlocked Achievements
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -333,15 +366,15 @@ export default function ProfilePage() {
       <Dialog open={isEditStatsDialogOpen} onOpenChange={setIsEditStatsDialogOpen}>
         <DialogContent className="sm:max-w-[425px] bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-white">Actualizar Estadísticas Físicas</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-white">Update Physical Statistics</DialogTitle>
             <DialogDescription className="text-slate-600 dark:text-slate-400">
-              Actualiza tus datos físicos para un seguimiento más preciso
+              Update your physical data for more accurate tracking
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="weight" className="text-slate-900 dark:text-white">Peso (kg)</Label>
+              <Label htmlFor="weight" className="text-slate-900 dark:text-white">Weight (kg)</Label>
               <Input 
                 id="weight" 
                 type="number" 
@@ -357,7 +390,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="height" className="text-slate-900 dark:text-white">Altura (cm)</Label>
+              <Label htmlFor="height" className="text-slate-900 dark:text-white">Height (cm)</Label>
               <Input 
                 id="height" 
                 type="number" 
@@ -372,7 +405,7 @@ export default function ProfilePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="age" className="text-slate-900 dark:text-white">Edad (años)</Label>
+              <Label htmlFor="age" className="text-slate-900 dark:text-white">Age (years)</Label>
               <Input 
                 id="age" 
                 type="number" 

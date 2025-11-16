@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Plus, Heart, UserPlus, Save, Image as ImageIcon, Search, Trash2 } from 'lucide-react';
+import { Users, Plus, Heart, UserPlus, Image as ImageIcon, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -19,9 +19,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { http } from '@/lib/http';
 import { socialApi } from '@/features/social/api/api';
 import { useTranslation } from 'react-i18next';
+import { MessageCircle } from 'lucide-react';
 
 type Post = {
   id: string;
@@ -59,7 +61,14 @@ export default function SocialPage() {
   const [deleteCommentDialog, setDeleteCommentDialog] = useState<{ open: boolean; postId: string | null; commentId: string | null }>({ open: false, postId: null, commentId: null });
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [showComments, setShowComments] = useState<Record<string, boolean>>({});
+  const [commentContent, setCommentContent] = useState<Record<string, string>>({});
   const [publishError, setPublishError] = useState('');
+  const [replyingTo, setReplyingTo] = useState<{ postId: string; commentId: string } | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [postImages, setPostImages] = useState<{ url: string; alt?: string }[]>([]);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
+  const [userWorkouts, setUserWorkouts] = useState<any[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -76,6 +85,25 @@ export default function SocialPage() {
     })();
     return () => { mounted = false; };
   }, []);
+
+  // Load user's workouts when modal opens
+  useEffect(() => {
+    if (!publishModalOpen) return;
+
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await http.get<any>('/api/v1/workouts');
+        const workouts = res?.data?.workouts || res?.workouts || res?.data || (Array.isArray(res) ? res : []);
+        if (mounted) {
+          setUserWorkouts(workouts);
+        }
+      } catch (err) {
+        console.error('Error loading workouts:', err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [publishModalOpen]);
 
   useEffect(() => {
     let mounted = true;
@@ -119,10 +147,18 @@ export default function SocialPage() {
     setLoading(true);
     setPublishError('');
     try {
-      const res = await socialApi.createPost(postContent);
-      const newPost = res?.data?.post || res?.post || res?.data || res;
+      const res = await socialApi.createPost({
+        content: postContent,
+        images: postImages.length > 0 ? postImages : undefined,
+        workout_id: selectedWorkoutId || undefined,
+        is_public: true,
+      });
+      const newPost = res?.data?.post || res?.data || res;
       setPosts((prev) => [newPost, ...prev]);
       setPostContent('');
+      setPostImages([]);
+      setSelectedWorkoutId(null);
+      setImageUrl('');
       setPublishModalOpen(false);
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message || err?.message || 'Error al publicar';
@@ -130,6 +166,16 @@ export default function SocialPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAddImage = () => {
+    if (!imageUrl.trim()) return;
+    setPostImages([...postImages, { url: imageUrl, alt: '' }]);
+    setImageUrl('');
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setPostImages(postImages.filter((_, i) => i !== index));
   };
 
   const handleLike = async (postId: string) => {
@@ -192,7 +238,14 @@ export default function SocialPage() {
     try {
       const res = await socialApi.comments(postId);
       const items = res?.data?.comments || res?.comments || res?.data || (Array.isArray(res) ? res : []);
-      setComments((prev) => ({ ...prev, [postId]: items }));
+      // Map user_id to userId for consistent field naming
+      const mappedComments = items.map((comment: any) => ({
+        ...comment,
+        userId: comment.userId || comment.user_id, // Support both field names
+        createdAt: comment.createdAt || comment.created_at,
+        updatedAt: comment.updatedAt || comment.updated_at,
+      }));
+      setComments((prev) => ({ ...prev, [postId]: mappedComments }));
       setShowComments((prev) => ({ ...prev, [postId]: true }));
     } catch (err) {
       console.error('Error loading comments:', err);
@@ -215,16 +268,120 @@ export default function SocialPage() {
     }
   };
 
+  const handlePostComment = async (postId: string) => {
+    const content = commentContent[postId];
+    if (!content?.trim()) return;
+    try {
+      const newComment = await socialApi.createComment(postId, { content });
+      // Map user_id to userId for consistent field naming
+      const mappedComment = {
+        ...newComment,
+        userId: newComment.userId || newComment.user_id,
+        createdAt: newComment.createdAt || newComment.created_at,
+      };
+      setComments((prev) => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), mappedComment],
+      }));
+      setCommentContent((prev) => ({ ...prev, [postId]: '' }));
+      // Refetch posts to update comment count
+      try {
+        const res = await socialApi.posts();
+        const items = res?.data?.posts || res?.posts || res?.data || (Array.isArray(res) ? res : []);
+        setPosts(items);
+      } catch (err) {
+        console.error('Error refetching posts:', err);
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Error posting comment';
+      setErrorDialog({ open: true, message: typeof msg === 'string' ? msg : 'Error posting comment' });
+    }
+  };
+
+  const handlePostReply = async (postId: string, parentCommentId: string) => {
+    if (!replyContent?.trim()) return;
+    try {
+      const newReply = await socialApi.createComment(postId, {
+        content: replyContent,
+        parent_comment_id: parentCommentId
+      });
+
+      // Map user_id to userId for consistent field naming
+      const mappedReply = {
+        ...newReply,
+        userId: newReply.userId || newReply.user_id,
+        createdAt: newReply.createdAt || newReply.created_at,
+      };
+
+      // Update the comments to add the reply to the parent comment
+      setComments((prev) => ({
+        ...prev,
+        [postId]: (prev[postId] || []).map((comment) => {
+          if (comment.id === parentCommentId) {
+            return {
+              ...comment,
+              replies: [...(comment.replies || []), mappedReply],
+            };
+          }
+          return comment;
+        }),
+      }));
+
+      setReplyContent('');
+      setReplyingTo(null);
+
+      // Refetch posts to update comment count
+      try {
+        const res = await socialApi.posts();
+        const items = res?.data?.posts || res?.posts || res?.data || (Array.isArray(res) ? res : []);
+        setPosts(items);
+      } catch (err) {
+        console.error('Error refetching posts:', err);
+      }
+    } catch (err: any) {
+      const msg = err?.message || 'Error posting reply';
+      setErrorDialog({ open: true, message: typeof msg === 'string' ? msg : 'Error posting reply' });
+    }
+  };
+
+  const handleCopyWorkout = async (workoutId: string) => {
+    if (!workoutId) {
+      setErrorDialog({ open: true, message: 'Workout ID is missing' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await http.post(`/api/v1/workouts/copy/${workoutId}`);
+      const copiedWorkout = res?.data?.data || res?.data || res;
+
+      setErrorDialog({
+        open: true,
+        message: `✅ Workout "${copiedWorkout?.name || 'Copied Workout'}" has been copied to your workouts!`
+      });
+
+      // Optionally redirect to workouts page or refresh
+      // window.location.href = '/workouts';
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message || err?.message || 'Failed to copy workout';
+      setErrorDialog({
+        open: true,
+        message: typeof msg === 'string' ? msg : 'Failed to copy workout'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-slate-900 dark:text-white mb-2">Red Social Interna</h1>
-          <p className="text-slate-600 dark:text-slate-400">Conecta con la comunidad GymPal</p>
+          <h1 className="text-slate-900 dark:text-white mb-2">Social Feed</h1>
+          <p className="text-slate-600 dark:text-slate-400">Connect with the GymPal community</p>
         </div>
         <Button onClick={() => setPublishModalOpen(true)} className="bg-emerald-500 hover:bg-emerald-600 text-white">
           <Plus className="h-4 w-4 mr-2" />
-          Nueva Publicación
+          New Post
         </Button>
       </div>
 
@@ -232,7 +389,7 @@ export default function SocialPage() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <Input
-          placeholder="Buscar publicaciones..."
+          placeholder="Search posts..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-10 bg-white/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -272,7 +429,7 @@ export default function SocialPage() {
                       className={followed[post.author.id] ? 'text-emerald-500' : 'text-slate-600 dark:text-slate-400'}
                     >
                       <UserPlus className="h-4 w-4 mr-2" />
-                      {followed[post.author.id] ? 'Siguiendo' : 'Seguir'}
+                      {followed[post.author.id] ? 'Following' : 'Follow'}
                     </Button>
                   )}
                   {currentUserId && post.userId === currentUserId && (
@@ -290,6 +447,41 @@ export default function SocialPage() {
             </CardHeader>
             <CardContent>
               <p className="text-slate-900 dark:text-white mb-4">{post.content}</p>
+
+              {/* Images */}
+              {post.image_urls && post.image_urls.length > 0 && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {post.image_urls.map((url: string, idx: number) => (
+                    <img
+                      key={idx}
+                      src={url}
+                      alt={`Post image ${idx + 1}`}
+                      className="max-h-64 max-w-full rounded border border-slate-300 dark:border-slate-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Workout Reference */}
+              {post.workout_id && (
+                <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded">
+                  <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 mb-1">📋 Referenced Workout</p>
+                  <p className="text-sm text-slate-900 dark:text-white">Workout ID: {post.workout_id}</p>
+                  <Button
+                    onClick={() => handleCopyWorkout(post.workout_id!)}
+                    disabled={loading}
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                  >
+                    📋 Copy This Workout
+                  </Button>
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <Button 
                   variant="ghost" 
@@ -300,17 +492,13 @@ export default function SocialPage() {
                   <Heart className={`h-4 w-4 mr-2 ${liked[post.id] || post.isLiked ? 'fill-pink-500' : ''}`} />
                   {(post.likesCount ?? 0) + ((liked[post.id] && !post.isLiked) ? 1 : 0)}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-slate-600 dark:text-slate-400"
                   onClick={() => handleLoadComments(post.id)}
                 >
-                  {post.commentsCount ?? 0} comentarios
-                </Button>
-                <Button variant="ghost" size="sm" className="text-slate-400">
-                  <Save className="h-4 w-4 mr-2" />
-                  Guardar
+                  {post.commentsCount ?? 0} comments
                 </Button>
               </div>
               {/* Comments Section */}
@@ -329,22 +517,72 @@ export default function SocialPage() {
                           <span className="text-sm font-medium text-slate-900 dark:text-white">
                             {comment.author?.fullName || comment.author?.username || 'Usuario'}
                           </span>
-                          {currentUserId && (comment.userId === currentUserId || post.userId === currentUserId) && (
+                          <div className="flex items-center gap-1 ml-auto">
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-6 w-6 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                              onClick={() => setDeleteCommentDialog({ open: true, postId: post.id, commentId: comment.id })}
+                              className="h-6 w-6 p-0 text-slate-600 dark:text-slate-400 hover:text-emerald-500 hover:bg-emerald-500/10"
+                              onClick={() => setReplyingTo({ postId: post.id, commentId: comment.id })}
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <MessageCircle className="h-3 w-3" />
                             </Button>
-                          )}
+                            {currentUserId && (comment.userId === currentUserId || post.userId === currentUserId) && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                onClick={() => setDeleteCommentDialog({ open: true, postId: post.id, commentId: comment.id })}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm text-slate-700 dark:text-slate-300">{comment.content}</p>
                         {comment.createdAt && (
                           <span className="text-xs text-slate-500 dark:text-slate-400">
                             {new Date(comment.createdAt).toLocaleString()}
                           </span>
+                        )}
+                        {/* Reply Input Form */}
+                        {replyingTo?.commentId === comment.id && replyingTo?.postId === post.id && (
+                          <div className="mt-2 ml-4 space-y-2 pt-2 border-l-2 border-emerald-500 pl-3">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                placeholder={t('social.writeReply')}
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handlePostReply(post.id, comment.id);
+                                  }
+                                }}
+                                className="flex-1 px-2 py-1 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded text-slate-900 dark:text-white text-xs placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                autoFocus
+                              />
+                              <Button
+                                onClick={() => handlePostReply(post.id, comment.id)}
+                                disabled={!replyContent?.trim()}
+                                size="sm"
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white h-auto px-2 py-1 text-xs"
+                              >
+                                {t('social.reply')}
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setReplyingTo(null);
+                                  setReplyContent('');
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="border-slate-300 dark:border-slate-700 h-auto px-2 py-1 text-xs"
+                              >
+                                {t('social.cancel')}
+                              </Button>
+                            </div>
+                          </div>
                         )}
                         {/* Replies */}
                         {comment.replies && comment.replies.length > 0 && (
@@ -366,7 +604,7 @@ export default function SocialPage() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-5 w-5 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                        className="h-5 w-5 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 ml-auto"
                                         onClick={() => setDeleteCommentDialog({ open: true, postId: post.id, commentId: reply.id })}
                                       >
                                         <Trash2 className="h-3 w-3" />
@@ -389,11 +627,44 @@ export default function SocialPage() {
                   ))}
                 </div>
               )}
+              {/* Add Comment Section */}
+              {showComments[post.id] && (
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Write a comment..."
+                      value={commentContent[post.id] || ''}
+                      onChange={(e) =>
+                        setCommentContent((prev) => ({
+                          ...prev,
+                          [post.id]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handlePostComment(post.id);
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded text-slate-900 dark:text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <Button
+                      onClick={() => handlePostComment(post.id)}
+                      disabled={!commentContent[post.id]?.trim()}
+                      size="sm"
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                    >
+                      Post
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
         {filtered.length === 0 && (
-          <div className="text-slate-400">No hay publicaciones.</div>
+          <div className="text-slate-400">No posts yet.</div>
         )}
       </div>
 
@@ -401,14 +672,14 @@ export default function SocialPage() {
       <Dialog open={publishModalOpen} onOpenChange={setPublishModalOpen}>
         <DialogContent className="bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-slate-900 dark:text-white">Crear Publicación</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-white">Create Post</DialogTitle>
             <DialogDescription className="text-slate-600 dark:text-slate-400">
-              Comparte tu progreso con la comunidad
+              Share your progress with the community
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Textarea
-              placeholder="¿Qué quieres compartir?"
+              placeholder="What do you want to share?"
               className="min-h-[200px] bg-white dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
               value={postContent}
               onChange={(e) => {
@@ -421,17 +692,79 @@ export default function SocialPage() {
                 {publishError}
               </div>
             )}
+
+            {/* Image URLs Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-900 dark:text-white">Add Images (URLs)</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Paste image URL..."
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="bg-white dark:bg-slate-900/50 border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white"
+                />
+                <Button
+                  onClick={handleAddImage}
+                  disabled={!imageUrl.trim()}
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                >
+                  <ImageIcon className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Display added images */}
+              {postImages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {postImages.map((img, idx) => (
+                    <div key={idx} className="relative group">
+                      <img
+                        src={img.url}
+                        alt={img.alt || `Image ${idx + 1}`}
+                        className="h-20 w-20 object-cover rounded border border-slate-300 dark:border-slate-700"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23e2e8f0" width="80" height="80"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="12" fill="%23475569"%3EBroken%3C/text%3E%3C/svg%3E';
+                        }}
+                      />
+                      <Button
+                        onClick={() => handleRemoveImage(idx)}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 p-0 bg-red-500 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100"
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Workout Reference */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-900 dark:text-white">Reference Workout (optional)</label>
+              <select
+                value={selectedWorkoutId || ''}
+                onChange={(e) => setSelectedWorkoutId(e.target.value || null)}
+                className="w-full px-3 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              >
+                <option value="">-- No workout --</option>
+                {userWorkouts.map((workout: any) => (
+                  <option key={workout.id} value={workout.id}>
+                    {workout.name} ({workout.difficulty || 'N/A'})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div className="flex justify-between items-center">
-              <Button variant="outline" className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300" disabled>
-                <ImageIcon className="h-4 w-4 mr-2" />
-                Añadir Imagen
-              </Button>
-              <Button 
-                onClick={handlePublishPost} 
-                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+              <Button
+                onClick={handlePublishPost}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white flex-1"
                 disabled={!postContent.trim() || loading}
               >
-                {loading ? 'Publicando…' : 'Publicar'}
+                {loading ? 'Posting…' : 'Post'}
               </Button>
             </div>
           </div>

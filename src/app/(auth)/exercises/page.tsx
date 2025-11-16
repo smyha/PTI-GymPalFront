@@ -14,23 +14,28 @@ export default function ExercisesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [exercises, setExercises] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
+        setLoading(true);
         const list = await exercisesApi.list();
         if (!mounted) return;
         // Handle different response formats from backend
-        const items = Array.isArray(list?.data) ? list.data 
-          : Array.isArray(list?.items) ? list.items 
+        const items = Array.isArray(list?.data) ? list.data
+          : Array.isArray(list?.items) ? list.items
           : Array.isArray(list?.exercises) ? list.exercises
           : Array.isArray(list) ? list : [];
+        console.log('Loaded exercises:', items);
         setExercises(items);
       } catch (err) {
         console.error('Error loading exercises:', err);
         if (!mounted) return;
         setExercises([]);
+      } finally {
+        if (mounted) setLoading(false);
       }
     })();
     return () => { mounted = false; };
@@ -53,6 +58,13 @@ export default function ExercisesPage() {
   };
 
   const handleSave = () => {
+    // Save selected exercises to sessionStorage so they persist across navigation
+    if (selectedExercises.length > 0) {
+      const selectedExerciseData = exercises.filter(ex =>
+        selectedExercises.includes(String(ex.id || ex.uuid || ex._id))
+      );
+      sessionStorage.setItem('selectedWorkoutExercises', JSON.stringify(selectedExerciseData));
+    }
     router.back();
   };
 
@@ -68,7 +80,7 @@ export default function ExercisesPage() {
             className="text-slate-400 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver
+            Back
           </Button>
         </div>
         <Button
@@ -77,67 +89,91 @@ export default function ExercisesPage() {
           disabled={selectedExercises.length === 0}
         >
           <Check className="h-4 w-4 mr-2" />
-          Añadir ({selectedExercises.length})
+          Add ({selectedExercises.length})
         </Button>
       </div>
 
       <div>
-        <h1 className="text-white mb-2">Biblioteca de Ejercicios</h1>
-        <p className="text-slate-400">Selecciona los ejercicios para tu rutina</p>
+        <h1 className="text-white mb-2">Exercise Library</h1>
+        <p className="text-slate-400">Select exercises for your routine</p>
       </div>
 
       {/* Search */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
         <Input
-          placeholder="Buscar ejercicios..."
+          placeholder="Search exercises..."
           className="pl-10 bg-slate-800/50 border-slate-700 text-white"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      {/* Exercise Categories */}
-      <Tabs defaultValue={categories[0]} className="space-y-4">
-        <TabsList className="bg-slate-800/50 border border-slate-700">
-          {categories.map((c) => (
-            <TabsTrigger key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</TabsTrigger>
-          ))}
-        </TabsList>
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-slate-400">Loading exercises...</div>
+        </div>
+      )}
 
-        {categories.map((category) => (
-          <TabsContent key={category} value={category} className="space-y-3">
-            {(byCategory[category] || []).filter((e) => passesSearch(e.name)).map((exercise: any) => {
-              const isSelected = selectedExercises.includes(exercise.id);
-              return (
-                <Card
-                  key={exercise.id}
-                  className={`cursor-pointer transition-all ${
-                    isSelected
-                      ? 'bg-emerald-500/20 border-emerald-500'
-                      : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
-                  }`}
-                  onClick={() => toggleExercise(exercise.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-white mb-1">{exercise.name}</h3>
-                        <p className="text-slate-400 text-sm">{exercise.difficulty}</p>
+      {/* No Exercises Message */}
+      {!loading && exercises.length === 0 && (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <p className="text-slate-400">No exercises found</p>
+            <p className="text-slate-500 text-sm mt-2">Try reloading the page or contact support</p>
+          </div>
+        </div>
+      )}
+
+      {/* Exercise Categories */}
+      {!loading && exercises.length > 0 && (
+        <Tabs defaultValue={categories[0]} className="space-y-4">
+          <TabsList className="bg-slate-800/50 border border-slate-700">
+            {categories.map((c) => (
+              <TabsTrigger key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</TabsTrigger>
+            ))}
+          </TabsList>
+
+          {categories.map((category) => (
+            <TabsContent key={category} value={category} className="space-y-3">
+              {(byCategory[category] || []).filter((e) => passesSearch(e.name)).map((exercise: any) => {
+                const isSelected = selectedExercises.includes(exercise.id);
+                return (
+                  <Card
+                    key={exercise.id}
+                    className={`cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-emerald-500/20 border-emerald-500'
+                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'
+                    }`}
+                    onClick={() => toggleExercise(exercise.id)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-white mb-1">{exercise.name}</h3>
+                          <p className="text-slate-400 text-sm">{exercise.difficulty}</p>
+                        </div>
+                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                          isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-600'
+                        }`}>
+                          {isSelected && <Check className="h-4 w-4 text-white" />}
+                        </div>
                       </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        isSelected ? 'border-emerald-500 bg-emerald-500' : 'border-slate-600'
-                      }`}>
-                        {isSelected && <Check className="h-4 w-4 text-white" />}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </TabsContent>
-        ))}
-      </Tabs>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+              {(byCategory[category] || []).filter((e) => passesSearch(e.name)).length === 0 && (
+                <div className="text-slate-500 text-center py-8">
+                  No exercises in this category
+                </div>
+              )}
+            </TabsContent>
+          ))}
+        </Tabs>
+      )}
     </div>
   );
 }

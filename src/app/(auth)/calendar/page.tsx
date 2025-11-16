@@ -31,6 +31,7 @@ type CalendarEntry = {
 export default function CalendarPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'year'>('month');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isAddWorkoutDialogOpen, setIsAddWorkoutDialogOpen] = useState(false);
@@ -151,12 +152,71 @@ export default function CalendarPage() {
     setCurrentMonth(newMonth);
   };
 
+  const previousDay = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setDate(newDate.getDate() - 1);
+    setCurrentMonth(newDate);
+  };
+
+  const nextDay = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setDate(newDate.getDate() + 1);
+    setCurrentMonth(newDate);
+  };
+
+  const previousWeek = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentMonth(newDate);
+  };
+
+  const nextWeek = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentMonth(newDate);
+  };
+
+  const previousYear = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setFullYear(newDate.getFullYear() - 1);
+    setCurrentMonth(newDate);
+  };
+
+  const nextYear = () => {
+    const newDate = new Date(currentMonth);
+    newDate.setFullYear(newDate.getFullYear() + 1);
+    setCurrentMonth(newDate);
+  };
+
+  // Helper function to get the start of the week (Monday)
+  const getWeekStart = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(d.setDate(diff));
+  };
+
+  // Helper function to format display based on view mode
+  const getDisplayTitle = () => {
+    if (viewMode === 'day') {
+      return currentMonth.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    } else if (viewMode === 'week') {
+      const weekStart = getWeekStart(currentMonth);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    } else if (viewMode === 'year') {
+      return currentMonth.getFullYear().toString();
+    }
+    return monthName;
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-slate-900 dark:text-white mb-2">{t('calendar.title')}</h1>
-          <p className="text-slate-600 dark:text-slate-400">{t('calendar.subtitle')}</p>
+          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2">{t('calendar.title')}</h1>
+          <p className="text-lg text-slate-600 dark:text-slate-400">{t('calendar.subtitle')}</p>
         </div>
         <Link href="/ai-chat">
           <Button className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white shadow-lg hover:shadow-purple-500/50 transition-all">
@@ -165,17 +225,40 @@ export default function CalendarPage() {
         </Link>
       </div>
 
+      {/* View Mode Filter */}
+      <div className="flex gap-2 flex-wrap">
+        {(['day', 'week', 'month', 'year'] as const).map((mode) => (
+          <Button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            variant={viewMode === mode ? 'default' : 'outline'}
+            className={`capitalize ${
+              viewMode === mode
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500'
+                : 'border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            {mode}
+          </Button>
+        ))}
+      </div>
+
       {/* Calendar */}
       <Card className="glass-card card-gradient-blue border-slate-200 dark:border-slate-700">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-slate-900 dark:text-white capitalize">{monthName}</CardTitle>
+            <CardTitle className="text-slate-900 dark:text-white capitalize">{getDisplayTitle()}</CardTitle>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                onClick={previousMonth}
+                onClick={
+                  viewMode === 'day' ? previousDay :
+                  viewMode === 'week' ? previousWeek :
+                  viewMode === 'year' ? previousYear :
+                  previousMonth
+                }
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -183,7 +266,12 @@ export default function CalendarPage() {
                 variant="outline"
                 size="sm"
                 className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                onClick={nextMonth}
+                onClick={
+                  viewMode === 'day' ? nextDay :
+                  viewMode === 'week' ? nextWeek :
+                  viewMode === 'year' ? nextYear :
+                  nextMonth
+                }
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -191,53 +279,175 @@ export default function CalendarPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-              <div key={day} className="text-center text-slate-600 dark:text-slate-400 text-sm py-2">
-                {day}
+          {viewMode === 'day' && (
+            <div className="space-y-4">
+              <div className="p-6 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                  {currentMonth.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                </h3>
+                {(() => {
+                  const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(currentMonth.getDate()).padStart(2, '0')}`;
+                  const entry = dayToEntry[dateStr];
+                  return (
+                    <div className="space-y-3">
+                      {entry?.hasWorkout ? (
+                        <div className="p-4 rounded-lg border border-emerald-500 bg-emerald-500/10">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-semibold text-slate-900 dark:text-white">{entry.routineName || 'Workout'}</h4>
+                              <p className={`text-sm mt-1 ${entry.status === 'completed' ? 'text-blue-500' : 'text-purple-500'}`}>
+                                Status: {entry.status === 'completed' ? 'Completed' : 'Scheduled'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleDayClick(dateStr, true)}
+                              className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm rounded transition-colors"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 text-center">
+                          <p className="text-slate-600 dark:text-slate-400 mb-3">No workouts scheduled</p>
+                          <button
+                            onClick={() => handleDayClick(dateStr, false)}
+                            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded transition-colors"
+                          >
+                            Add Workout
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
-            ))}
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-square" />
-            ))}
+            </div>
+          )}
 
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const entry = dayToEntry[dateStr];
-              const today = new Date();
-              const isToday = day === today.getDate() &&
-                             currentMonth.getMonth() === today.getMonth() &&
-                             currentMonth.getFullYear() === today.getFullYear();
+          {viewMode === 'week' && (
+            <div className="space-y-3">
+              {(() => {
+                const weekStart = getWeekStart(currentMonth);
+                const weekDays = Array.from({ length: 7 }).map((_, i) => {
+                  const date = new Date(weekStart);
+                  date.setDate(date.getDate() + i);
+                  return date;
+                });
 
-              return (
-                <button
-                  key={day}
-                  onClick={() => handleDayClick(dateStr, !!entry?.hasWorkout)}
-                  className={`aspect-square p-2 rounded-lg border transition-all hover-lift ${
-                    isToday
-                      ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20'
-                      : entry?.hasWorkout
-                      ? entry.status === 'completed'
-                        ? 'border-blue-500 bg-blue-500/10 dark:bg-blue-500/20 hover:bg-blue-500/20 dark:hover:bg-blue-500/30'
-                        : 'border-purple-500 bg-purple-500/10 dark:bg-purple-500/20 hover:bg-purple-500/20 dark:hover:bg-purple-500/30'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 dark:hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-slate-700/50'
-                  }`}
-                >
-                  <div className="text-slate-900 dark:text-white text-sm mb-1">{day}</div>
-                  {entry?.hasWorkout ? (
-                    <div className={`text-xs ${entry.status === 'completed' ? 'text-blue-500' : 'text-purple-500'}`}>
-                      {entry.routineName || 'Workout'}
+                return weekDays.map((day) => {
+                  const dateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+                  const entry = dayToEntry[dateStr];
+                  const dayName = day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+                  return (
+                    <div key={dateStr} className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-start justify-between">
+                      <div>
+                        <h4 className="font-semibold text-slate-900 dark:text-white">{dayName}</h4>
+                        {entry?.hasWorkout ? (
+                          <p className={`text-sm mt-1 ${entry.status === 'completed' ? 'text-blue-500' : 'text-purple-500'}`}>
+                            {entry.routineName || 'Workout'} ({entry.status === 'completed' ? 'Completed' : 'Scheduled'})
+                          </p>
+                        ) : (
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">No workout</p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDayClick(dateStr, !!entry?.hasWorkout)}
+                        className="px-3 py-1 bg-emerald-500 hover:bg-emerald-600 text-white text-sm rounded transition-colors"
+                      >
+                        {entry?.hasWorkout ? 'View' : 'Add'}
+                      </button>
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-center mt-1">
-                      <Plus className="h-3 w-3 text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  );
+                });
+              })()}
+            </div>
+          )}
+
+          {viewMode === 'month' && (
+            <div className="grid grid-cols-7 gap-2">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                <div key={day} className="text-center text-slate-600 dark:text-slate-400 text-sm py-2">
+                  {day}
+                </div>
+              ))}
+              {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+                <div key={`empty-${i}`} className="aspect-square" />
+              ))}
+
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const entry = dayToEntry[dateStr];
+                const today = new Date();
+                const isToday = day === today.getDate() &&
+                               currentMonth.getMonth() === today.getMonth() &&
+                               currentMonth.getFullYear() === today.getFullYear();
+
+                return (
+                  <button
+                    key={day}
+                    onClick={() => handleDayClick(dateStr, !!entry?.hasWorkout)}
+                    className={`aspect-square p-2 rounded-lg border transition-all hover-lift ${
+                      isToday
+                        ? 'border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20'
+                        : entry?.hasWorkout
+                        ? entry.status === 'completed'
+                          ? 'border-blue-500 bg-blue-500/10 dark:bg-blue-500/20 hover:bg-blue-500/20 dark:hover:bg-blue-500/30'
+                          : 'border-purple-500 bg-purple-500/10 dark:bg-purple-500/20 hover:bg-purple-500/20 dark:hover:bg-purple-500/30'
+                        : 'border-slate-200 dark:border-slate-700 hover:border-emerald-500/50 dark:hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <div className="text-slate-900 dark:text-white text-sm mb-1">{day}</div>
+                    {entry?.hasWorkout ? (
+                      <div className={`text-xs ${entry.status === 'completed' ? 'text-blue-500' : 'text-purple-500'}`}>
+                        {entry.routineName || 'Workout'}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center mt-1">
+                        <Plus className="h-3 w-3 text-slate-400 dark:text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {viewMode === 'year' && (
+            <div className="grid grid-cols-3 gap-4">
+              {Array.from({ length: 12 }).map((_, monthIndex) => {
+                const monthDate = new Date(currentMonth.getFullYear(), monthIndex, 1);
+                const monthDays = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+                const workoutsInMonth = Array.from({ length: monthDays })
+                  .map((_, dayIndex) => {
+                    const dateStr = `${monthDate.getFullYear()}-${String(monthIndex + 1).padStart(2, '0')}-${String(dayIndex + 1).padStart(2, '0')}`;
+                    return dayToEntry[dateStr];
+                  })
+                  .filter(entry => entry?.hasWorkout);
+
+                return (
+                  <div key={monthIndex} className="p-4 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <h4 className="font-semibold text-slate-900 dark:text-white mb-2">
+                      {monthDate.toLocaleDateString('en-US', { month: 'long' })}
+                    </h4>
+                    <div className="space-y-2">
+                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                        {workoutsInMonth.length} workout{workoutsInMonth.length !== 1 ? 's' : ''}
+                      </p>
+                      <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
+                          style={{ width: `${(workoutsInMonth.length / monthDays) * 100}%` }}
+                        />
+                      </div>
                     </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -267,10 +477,10 @@ export default function CalendarPage() {
 
       {/* Add Workout Dialog */}
       <Dialog open={isAddWorkoutDialogOpen} onOpenChange={setIsAddWorkoutDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-background border-border">
+        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Add Workout</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
+            <DialogTitle className="text-slate-900 dark:text-white">Add Workout</DialogTitle>
+            <DialogDescription className="text-slate-600 dark:text-slate-400">
               Select a routine to add on{' '}
               {selectedDate && new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
                 day: 'numeric',
@@ -286,16 +496,16 @@ export default function CalendarPage() {
                 <button
                   key={routine.id}
                   onClick={() => handleAddWorkout(routine.id)}
-                  className="w-full text-left p-4 rounded-lg border border-border hover:border-emerald-500 dark:hover:border-emerald-500 bg-card hover:bg-accent transition-all hover-lift group"
+                  className="w-full text-left p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all hover-lift group"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <Dumbbell className="h-4 w-4 text-emerald-500 group-hover:text-emerald-600" />
-                        <h4 className="text-foreground">{routine.name}</h4>
+                        <h4 className="text-slate-900 dark:text-white">{routine.name}</h4>
                       </div>
                     </div>
-                    <Plus className="h-5 w-5 text-muted-foreground group-hover:text-emerald-500 transition-colors" />
+                    <Plus className="h-5 w-5 text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 transition-colors" />
                   </div>
                 </button>
               ))}
@@ -307,7 +517,7 @@ export default function CalendarPage() {
                   setSelectedDate(null);
                   router.push('/workouts/new');
                 }}
-                className="w-full text-left p-4 rounded-lg border-2 border-dashed border-border hover:border-emerald-500 dark:hover:border-emerald-500 bg-gradient-to-r from-emerald-500/5 to-emerald-600/5 hover:from-emerald-500/10 hover:to-emerald-600/10 transition-all hover-lift group"
+                className="w-full text-left p-4 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-emerald-500 dark:hover:border-emerald-500 bg-gradient-to-r from-emerald-500/5 to-emerald-600/5 dark:from-emerald-500/10 dark:to-emerald-600/10 hover:from-emerald-500/10 hover:to-emerald-600/10 dark:hover:from-emerald-500/20 dark:hover:to-emerald-600/20 transition-all hover-lift group"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -315,8 +525,8 @@ export default function CalendarPage() {
                       <Plus className="h-5 w-5 text-emerald-500" />
                     </div>
                     <div>
-                      <h4 className="text-foreground">New Routine</h4>
-                      <p className="text-sm text-muted-foreground">Create a custom routine</p>
+                      <h4 className="text-slate-900 dark:text-white">New Routine</h4>
+                      <p className="text-sm text-slate-600 dark:text-slate-400">Create a custom routine</p>
                     </div>
                   </div>
                 </div>
@@ -331,7 +541,7 @@ export default function CalendarPage() {
                 setIsAddWorkoutDialogOpen(false);
                 setSelectedDate(null);
               }}
-              className="border-border text-foreground hover:bg-accent"
+              className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               Cancel
             </Button>
