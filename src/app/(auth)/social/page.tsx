@@ -117,12 +117,17 @@ export default function SocialPage() {
     (async () => {
       try {
         const res = await http.get<any>('/api/v1/workouts');
-        const workouts = res?.data?.workouts || res?.workouts || res?.data || (Array.isArray(res) ? res : []);
+        // The API returns { success: true, data: { data: [...], pagination: {...} } }
+        // So res is the full object. res.data is the wrapper. res.data.data is the array.
+        // We try multiple paths to be robust.
+        const workoutsData = res?.data?.data || res?.data?.workouts || res?.data || res?.workouts || [];
+        const workouts = Array.isArray(workoutsData) ? workoutsData : (Array.isArray(res) ? res : []);
+        
         if (mounted) {
-          // Ensure we always store an array (API may return an object or wrapped data)
-          setUserWorkouts(Array.isArray(workouts) ? workouts : []);
+          setUserWorkouts(workouts);
         }
       } catch (err) {
+        console.error('Failed to load user workouts', err);
       }
     })();
     return () => { mounted = false; };
@@ -506,9 +511,18 @@ export default function SocialPage() {
       // window.location.href = '/workouts';
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message || err?.message || 'Failed to copy workout';
+      
+      let displayMsg = typeof msg === 'string' ? msg : 'Failed to copy workout';
+      
+      if (displayMsg.includes('NOT_FOUND') || displayMsg.includes('not found')) {
+           displayMsg = t('social.workoutNotFoundOrPrivate') || "Workout not found or is private.";
+      } else if (displayMsg.includes('DATABASE_ERROR')) {
+           displayMsg = t('errors.databaseError') || "A database error occurred. Please try again.";
+      }
+
       setErrorDialog({
         open: true,
-        message: typeof msg === 'string' ? msg : 'Failed to copy workout'
+        message: displayMsg
       });
     } finally {
       setLoading(false);
@@ -1024,7 +1038,8 @@ export default function SocialPage() {
       {/* Image Preview Viewer */}
       {previewImage && (
         <ImageViewer
-          imageUrl={previewImage}
+          src={previewImage}
+          isOpen={!!previewImage}
           onClose={() => setPreviewImage(null)}
         />
       )}
