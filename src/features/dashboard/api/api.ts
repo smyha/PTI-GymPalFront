@@ -19,9 +19,10 @@ export type DashboardData = {
  * Get dashboard overview (stats and recent activity)
  */
 export async function getDashboard() {
-  apiLogger.info({ endpoint: '/api/v1/dashboard' }, 'Get dashboard request');
+  const date = new Date().toISOString().split('T')[0];
+  apiLogger.info({ endpoint: '/api/v1/dashboard', date }, 'Get dashboard request');
   try {
-    const wrappedRes = await http.get<ApiResponse<any>>('/api/v1/dashboard');
+    const wrappedRes = await http.get<ApiResponse<any>>(`/api/v1/dashboard?date=${date}`);
     const rawData = wrappedRes?.data;
     if (!rawData) throw new Error('No dashboard data in response');
 
@@ -39,11 +40,13 @@ export async function getDashboard() {
  * Get dashboard statistics with optional timeframe
  */
 export async function getDashboardStats(timeframe: 'week' | 'month' | 'year' | 'all' = 'all', includeSocial: boolean = true) {
-  apiLogger.info({ endpoint: '/api/v1/dashboard/stats', period: timeframe, includeSocial }, 'Get dashboard stats request');
+  const date = new Date().toISOString().split('T')[0];
+  apiLogger.info({ endpoint: '/api/v1/dashboard/stats', period: timeframe, includeSocial, date }, 'Get dashboard stats request');
   try {
     const params = new URLSearchParams({
       period: timeframe,
       include_social: includeSocial.toString(),
+      date,
     });
     const wrappedRes = await http.get<ApiResponse<Unified.DashboardStats>>(`/api/v1/dashboard/stats?${params}`);
     const rawData = wrappedRes?.data;
