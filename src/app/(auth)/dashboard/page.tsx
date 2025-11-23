@@ -62,7 +62,9 @@ export default function DashboardPage() {
   // Use completedThisWeek from state (fetched via workoutsApi.getCompletedWorkoutCount) as primary source
   // Calculate weekly goal - default to 7 workouts per week
   const weeklyGoal = 7;
-  const progressPercent = weeklyGoal > 0 ? Math.min(100, Math.max(0, (completedThisWeek / weeklyGoal) * 100)) : 0;
+  const progressPercent = Number.isFinite(completedThisWeek) && weeklyGoal > 0 
+    ? Math.min(100, Math.max(0, (Number(completedThisWeek) / weeklyGoal) * 100)) 
+    : 0;
 
   // Get next workout from recent workouts if available, or today's workout
   const nextWorkout = todayWorkout || (recentWorkouts.length > 0 ? recentWorkouts[0] : null);
@@ -122,10 +124,10 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 <Progress
-                  value={Number.isFinite(progressPercent) ? progressPercent : 0}
+                  value={progressPercent}
                   className="h-3 bg-slate-200 dark:bg-slate-700"
                 />
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{Math.round(Number.isFinite(progressPercent) ? progressPercent : 0)}% complete</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{Math.round(progressPercent)}% {t('common.complete', { defaultValue: 'complete' })}</p>
               </div>
             </div>
           </CardContent>
