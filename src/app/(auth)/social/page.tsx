@@ -781,22 +781,33 @@ export default function SocialPage() {
                         )}
                       </div>
                       <p className="text-sm font-medium text-slate-900 dark:text-white">
-                        {post.workout?.name || `Workout ID: ${post.workout_id}`}
+                        {post.workout?.name || t('social.workoutNameNotAvailable')}
                       </p>
                       {post.workout?.description && (
                         <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
                           {post.workout.description}
                         </p>
                       )}
-                      <Button
-                        onClick={() => handleCopyWorkout(post.workout?.id || post.workout_id!)}
-                        disabled={loading}
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 h-auto py-1 px-2 text-xs"
-                      >
-                        {t('social.copyWorkout')}
-                      </Button>
+                      <div className="flex gap-2 mt-2">
+                        <Link href={`/workouts/${post.workout?.id || post.workout_id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 h-auto py-1 px-2 text-xs"
+                          >
+                            {t('social.viewWorkoutDetails')}
+                          </Button>
+                        </Link>
+                        <Button
+                          onClick={() => handleCopyWorkout(post.workout?.id || post.workout_id!)}
+                          disabled={loading}
+                          variant="ghost"
+                          size="sm"
+                          className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 h-auto py-1 px-2 text-xs"
+                        >
+                          {t('social.copyWorkout')}
+                        </Button>
+                      </div>
                     </div>
                   )}
 
@@ -1075,22 +1086,33 @@ export default function SocialPage() {
                       )}
                     </div>
                     <p className="text-sm font-medium text-slate-900 dark:text-white">
-                      {post.workout?.name || `Workout ID: ${post.workout_id}`}
+                      {post.workout?.name || t('social.workoutNameNotAvailable')}
                     </p>
                     {post.workout?.description && (
                       <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2">
                         {post.workout.description}
                       </p>
                     )}
-                    <Button
-                      onClick={() => handleCopyWorkout(post.workout?.id || post.workout_id!)}
-                      disabled={loading}
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 h-auto py-1 px-2 text-xs"
-                    >
-                      {t('social.copyWorkout')}
-                    </Button>
+                    <div className="flex gap-2 mt-2">
+                      <Link href={`/workouts/${post.workout?.id || post.workout_id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 h-auto py-1 px-2 text-xs"
+                        >
+                          {t('social.viewWorkoutDetails')}
+                        </Button>
+                      </Link>
+                      <Button
+                        onClick={() => handleCopyWorkout(post.workout?.id || post.workout_id!)}
+                        disabled={loading}
+                        variant="ghost"
+                        size="sm"
+                        className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 h-auto py-1 px-2 text-xs"
+                      >
+                        {t('social.copyWorkout')}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
