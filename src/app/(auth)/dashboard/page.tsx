@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [workoutCount, setWorkoutCount] = useState<number>(0);
   const [completedThisWeek, setCompletedThisWeek] = useState<number>(0);
   const [exerciseCount, setExerciseCount] = useState<number>(0);
+  const [streak, setStreak] = useState<number>(0);
 
   useEffect(() => {
     let mounted = true;
@@ -29,12 +30,13 @@ export default function DashboardPage() {
       try {
         const dateStr = new Date().toISOString().split('T')[0];
         // Load dashboard data and workout/exercise counts
-        const [ov, st, count, weekCount, exerciseCountData] = await Promise.all([
+        const [ov, st, count, weekCount, exerciseCountData, currentStreak] = await Promise.all([
           getDashboard().catch(() => null),
           getDashboardStats().catch(() => null),
           user?.id ? workoutsApi.getWorkoutCount(user.id).catch(() => 0) : Promise.resolve(0),
           user?.id ? workoutsApi.getCompletedWorkoutCount(user.id, 'week', dateStr).catch(() => 0) : Promise.resolve(0),
-          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'all', dateStr).catch(() => 0) : Promise.resolve(0)
+          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'all', dateStr).catch(() => 0) : Promise.resolve(0),
+          user?.id ? workoutsApi.getCurrentStreak(user.id, dateStr).catch(() => 0) : Promise.resolve(0)
         ]);
 
         if (!mounted) return;
@@ -43,6 +45,7 @@ export default function DashboardPage() {
         setWorkoutCount(count || 0);
         setCompletedThisWeek(weekCount || 0);
         setExerciseCount(exerciseCountData || 0);
+        setStreak(currentStreak || 0);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -54,8 +57,7 @@ export default function DashboardPage() {
   const statsData = stats?.data || {};
   
   // Dashboard overview returns: { stats: { total_workouts, total_exercises, completed_routines_this_week, streak }, recent_workouts: [], today_workout: {} }
-  // Use workoutCount and exerciseCount from state (fetched via workoutsApi) as primary source
-  const streak = overviewData.stats?.streak || 0;
+  // Use workoutCount, exerciseCount, and streak from state (fetched via workoutsApi) as primary source
   const recentWorkouts = overviewData.recent_workouts || [];
   const todayWorkout = overviewData.today_workout;
   
@@ -123,10 +125,12 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Progress
-                  value={progressPercent}
-                  className="h-3 bg-slate-200 dark:bg-slate-700"
-                />
+                <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500 rounded-full"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
                 <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{Math.round(progressPercent)}% {t('common.complete', { defaultValue: 'complete' })}</p>
               </div>
             </div>
