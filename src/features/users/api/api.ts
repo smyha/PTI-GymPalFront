@@ -78,11 +78,10 @@ export async function getPublicUserProfile(userId: string) {
 export async function searchUsers(query: string, page: number = 1, limit: number = 20) {
   apiLogger.info({ endpoint: '/api/v1/users/search', query, page, limit }, 'Search users request');
   try {
-    const params = new URLSearchParams({
-      q: query,
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+    const params = new URLSearchParams();
+    params.append('q', query);
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
     const wrappedRes = await http.get<ApiResponse<Unified.PaginatedList<Unified.UserProfile>>>(`/api/v1/users/search?${params}`);
     const rawData = wrappedRes?.data;
     if (!rawData) throw new Error('No users in response');

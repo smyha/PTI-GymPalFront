@@ -23,10 +23,9 @@ export type CreateCommentRequest = {
 export async function listPosts(page: number = 1, limit: number = 20) {
   apiLogger.info({ endpoint: '/api/v1/social/posts', page, limit }, 'List posts request');
   try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
     const response = await http.get<any>(`/api/v1/social/posts?${params}`);
 
     // Backend returns: { success: true, data: [...posts], pagination: {...}, metadata: {...} }
@@ -275,10 +274,9 @@ export async function getPostCount(userId: string) {
 export async function getUserReposts(userId: string, page: number = 1, limit: number = 20) {
   apiLogger.info({ endpoint: `/api/v1/social/users/${userId}/reposts`, page, limit }, 'Get user reposts request');
   try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
     const wrappedRes = await http.get<any>(`/api/v1/social/users/${userId}/reposts?${params}`);
     const data = wrappedRes?.data;
     if (!data) throw new Error('No reposts in response');
