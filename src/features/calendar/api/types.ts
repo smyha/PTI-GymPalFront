@@ -16,6 +16,7 @@ export interface CalendarDay {
   workoutName?: string;
   exerciseCount?: number;
   completed?: boolean;
+  annotations?: string | null;
 }
 
 /**

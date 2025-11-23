@@ -20,7 +20,6 @@ export type Settings = {
 export type NotificationSettings = {
   email: boolean;
   push: boolean;
-  sms: boolean;
 };
 
 export type PrivacySettings = {
@@ -36,7 +35,7 @@ export async function getSettings() {
   apiLogger.info({ endpoint: '/api/v1/settings' }, 'Get settings request');
   try {
     const wrappedRes = await http.get<ApiResponse<any>>('/api/v1/settings');
-    const rawData = wrappedRes?.data;
+    const rawData = wrappedRes?.data?.data || wrappedRes?.data;
     if (!rawData) throw new Error('No settings in response');
 
     // Transform settings (using generic transformer)
@@ -56,7 +55,7 @@ export async function updateSettings(settings: Partial<Settings>) {
   apiLogger.info({ endpoint: '/api/v1/settings' }, 'Update settings request');
   try {
     const wrappedRes = await http.put<ApiResponse<any>>('/api/v1/settings', settings);
-    const rawData = wrappedRes?.data;
+    const rawData = wrappedRes?.data?.data || wrappedRes?.data;
     if (!rawData) throw new Error('No settings in response');
 
     // Transform settings (using generic transformer)
@@ -75,14 +74,14 @@ export async function updateSettings(settings: Partial<Settings>) {
 export async function getNotificationSettings() {
   apiLogger.info({ endpoint: '/api/v1/settings/notifications' }, 'Get notification settings request');
   try {
-    const wrappedRes = await http.get<ApiResponse<{ notifications: any }>>('/api/v1/settings/notifications');
-    const rawData = wrappedRes?.data;
+    const wrappedRes = await http.get<ApiResponse<any>>('/api/v1/settings/notifications');
+    const rawData = wrappedRes?.data?.data || wrappedRes?.data;
     if (!rawData) throw new Error('No notification settings in response');
 
     // Transform notification settings
     const transformed = transformers.transformResponseKeys(rawData);
     apiLogger.info({}, 'Get notification settings success');
-    return transformed.notifications;
+    return transformed;
   } catch (err) {
     logError(err as Error, { endpoint: '/api/v1/settings/notifications' });
     throw err;
@@ -95,14 +94,14 @@ export async function getNotificationSettings() {
 export async function updateNotificationSettings(settings: Partial<NotificationSettings>) {
   apiLogger.info({ endpoint: '/api/v1/settings/notifications' }, 'Update notification settings request');
   try {
-    const wrappedRes = await http.put<ApiResponse<{ notifications: any }>>('/api/v1/settings/notifications', settings);
-    const rawData = wrappedRes?.data;
+    const wrappedRes = await http.put<ApiResponse<any>>('/api/v1/settings/notifications', settings);
+    const rawData = wrappedRes?.data?.data || wrappedRes?.data;
     if (!rawData) throw new Error('No notification settings in response');
 
     // Transform notification settings
     const transformed = transformers.transformResponseKeys(rawData);
     apiLogger.info({}, 'Update notification settings success');
-    return transformed.notifications;
+    return transformed;
   } catch (err) {
     logError(err as Error, { endpoint: '/api/v1/settings/notifications' });
     throw err;
@@ -115,14 +114,14 @@ export async function updateNotificationSettings(settings: Partial<NotificationS
 export async function getPrivacySettings() {
   apiLogger.info({ endpoint: '/api/v1/settings/privacy' }, 'Get privacy settings request');
   try {
-    const wrappedRes = await http.get<ApiResponse<{ privacy: any }>>('/api/v1/settings/privacy');
-    const rawData = wrappedRes?.data;
+    const wrappedRes = await http.get<ApiResponse<any>>('/api/v1/settings/privacy');
+    const rawData = wrappedRes?.data?.data || wrappedRes?.data;
     if (!rawData) throw new Error('No privacy settings in response');
 
     // Transform privacy settings
     const transformed = transformers.transformResponseKeys(rawData);
     apiLogger.info({}, 'Get privacy settings success');
-    return transformed.privacy;
+    return transformed;
   } catch (err) {
     logError(err as Error, { endpoint: '/api/v1/settings/privacy' });
     throw err;
@@ -135,14 +134,14 @@ export async function getPrivacySettings() {
 export async function updatePrivacySettings(settings: Partial<PrivacySettings>) {
   apiLogger.info({ endpoint: '/api/v1/settings/privacy' }, 'Update privacy settings request');
   try {
-    const wrappedRes = await http.put<ApiResponse<{ privacy: any }>>('/api/v1/settings/privacy', settings);
-    const rawData = wrappedRes?.data;
+    const wrappedRes = await http.put<ApiResponse<any>>('/api/v1/settings/privacy', settings);
+    const rawData = wrappedRes?.data?.data || wrappedRes?.data;
     if (!rawData) throw new Error('No privacy settings in response');
 
     // Transform privacy settings
     const transformed = transformers.transformResponseKeys(rawData);
     apiLogger.info({}, 'Update privacy settings success');
-    return transformed.privacy;
+    return transformed;
   } catch (err) {
     logError(err as Error, { endpoint: '/api/v1/settings/privacy' });
     throw err;

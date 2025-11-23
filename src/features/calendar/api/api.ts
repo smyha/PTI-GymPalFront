@@ -56,23 +56,27 @@ export async function getMonth(month: number, year: number): Promise<CalendarDay
  *
  * @param {string} workoutId - ID of the workout to add
  * @param {string} date - Date in format YYYY-MM-DD
+ * @param {string} [annotations] - Optional annotations for the scheduled workout
  * @returns {Promise<AddWorkoutResponse>} Response indicating success
  *
  * @example
- * const result = await calendarApi.addWorkout('workout-123', '2025-11-20');
+ * const result = await calendarApi.addWorkout('workout-123', '2025-11-20', 'Focus on form');
  *
  * @throws {Error} If the API request fails
  */
-export async function addWorkout(workoutId: string, date: string): Promise<AddWorkoutResponse> {
+export async function addWorkout(workoutId: string, date: string, annotations?: string): Promise<AddWorkoutResponse> {
   const endpoint = '/api/v1/calendar/add-workout';
-  apiLogger.info({ endpoint, workoutId, date }, 'Adding workout to calendar');
+  apiLogger.info({ endpoint, workoutId, date, annotations }, 'Adding workout to calendar');
 
   try {
-    // backend expects `workout_id` (snake_case)
+    // backend expects `workout_id` (snake_case) and `annotations`
     const payload: any = {
       workout_id: workoutId,
       date,
     };
+    if (annotations) {
+      payload.annotations = annotations;
+    }
 
     const response = await http.post<ApiResponse<AddWorkoutResponse>>(endpoint, payload);
     const data = response?.data;
@@ -137,10 +141,30 @@ export async function completeScheduled(id: string): Promise<boolean> {
   }
 }
 
+/**
+ * Updates annotations for a scheduled workout
+ * @param id Scheduled entry id
+ * @param annotations New annotations text
+ */
+export async function updateAnnotations(id: string, annotations: string): Promise<boolean> {
+  const endpoint = `/api/v1/calendar/${id}`;
+  apiLogger.info({ endpoint, id, annotations }, 'Updating scheduled workout annotations');
+
+  try {
+    await http.put<ApiResponse<any>>(endpoint, { annotations: annotations.trim() || null });
+    apiLogger.info({ id }, 'Annotations updated successfully');
+    return true;
+  } catch (err) {
+    logError(err as Error, { endpoint, id });
+    throw err;
+  }
+}
+
 // Add deleteScheduled to the exported api object for convenience
 export const calendarApi = {
   getMonth,
   addWorkout,
   deleteScheduled,
   completeScheduled,
+  updateAnnotations,
 };

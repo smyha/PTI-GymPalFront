@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Dumbbell, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -39,6 +41,9 @@ export default function CalendarPage() {
   const [addError, setAddError] = useState('');
   const [addSuccess, setAddSuccess] = useState('');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [selectedWorkoutId, setSelectedWorkoutId] = useState<string | null>(null);
+  const [annotations, setAnnotations] = useState('');
+  const [editingAnnotations, setEditingAnnotations] = useState('');
 
   useEffect(() => {
     let mounted = true;
@@ -129,8 +134,12 @@ export default function CalendarPage() {
   const handleDayClick = (dateStr: string, hasWorkout: boolean) => {
     setSelectedDate(dateStr);
     if (hasWorkout) {
+      const entry = dayToEntry[dateStr];
+      setEditingAnnotations(entry?.annotations || '');
       setIsViewWorkoutDialogOpen(true);
     } else {
+      setAnnotations('');
+      setSelectedWorkoutId(null);
       setIsAddWorkoutDialogOpen(true);
     }
   };
@@ -141,12 +150,13 @@ export default function CalendarPage() {
 
     if (!selectedDate || !routineId) {
       setSelectedDate(null);
+      setAnnotations('');
       return;
     }
 
     try {
-      // Add the workout to the calendar date
-      await calendarApi.addWorkout(routineId, selectedDate);
+      // Add the workout to the calendar date with annotations
+      await calendarApi.addWorkout(routineId, selectedDate, annotations.trim() || undefined);
 
       // Show a brief confirmation to the user
       setAddSuccess('Workout scheduled');
@@ -168,6 +178,7 @@ export default function CalendarPage() {
       // Optionally show a user-friendly error message here
     } finally {
       setSelectedDate(null);
+      setAnnotations('');
     }
   };
 
@@ -638,8 +649,12 @@ export default function CalendarPage() {
               {routines.map((routine) => (
                 <button
                   key={routine.id}
-                  onClick={() => handleAddWorkout(routine.id)}
-                  className="w-full text-left p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 transition-all hover-lift group"
+                  onClick={() => setSelectedWorkoutId(routine.id)}
+                  className={`w-full text-left p-4 rounded-lg border transition-all hover-lift group ${
+                    selectedWorkoutId === routine.id
+                      ? 'border-emerald-500 dark:border-emerald-500 bg-emerald-500/10 dark:bg-emerald-500/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900'
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -677,16 +692,45 @@ export default function CalendarPage() {
             </div>
           </ScrollArea>
 
+          {/* Annotations field */}
+          {selectedWorkoutId && (
+            <div className="px-6 space-y-2">
+              <Label htmlFor="annotations" className="text-slate-900 dark:text-white">
+                {t('calendar.annotations')} ({t('common.optional')})
+              </Label>
+              <Textarea
+                id="annotations"
+                placeholder={t('calendar.annotationsPlaceholder')}
+                className="bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 resize-none h-20"
+                value={annotations}
+                onChange={(e) => setAnnotations(e.target.value)}
+              />
+            </div>
+          )}
+
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => {
                 setIsAddWorkoutDialogOpen(false);
                 setSelectedDate(null);
+                setSelectedWorkoutId(null);
+                setAnnotations('');
               }}
               className="border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               {t('common.cancel')}
+            </Button>
+            <Button
+              onClick={() => {
+                if (selectedWorkoutId) {
+                  handleAddWorkout(selectedWorkoutId);
+                }
+              }}
+              disabled={!selectedWorkoutId}
+              className="bg-emerald-500 hover:bg-emerald-600 text-white"
+            >
+              {t('calendar.addWorkout')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -762,6 +806,44 @@ export default function CalendarPage() {
                         {t('calendar.open')}
                       </Button>
                     </div>
+                  </div>
+
+                  {/* Annotations Section */}
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-annotations" className="text-slate-900 dark:text-white">
+                      {t('calendar.annotations')}
+                    </Label>
+                    <Textarea
+                      id="edit-annotations"
+                      placeholder={t('calendar.annotationsPlaceholder')}
+                      className="bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-500 resize-none h-24"
+                      value={editingAnnotations}
+                      onChange={(e) => setEditingAnnotations(e.target.value)}
+                    />
+                    <Button
+                      onClick={async () => {
+                        if (!selectedDate) return;
+                        const entry = dayToEntry[selectedDate];
+                        const scheduledId = entry?.id;
+                        if (!scheduledId) return;
+                        try {
+                          await calendarApi.updateAnnotations(String(scheduledId), editingAnnotations);
+                          setToast({ message: t('calendar.annotationsUpdated'), type: 'success' });
+                          const year = currentMonth.getFullYear();
+                          const month = currentMonth.getMonth() + 1;
+                          const updatedDays = await calendarApi.getMonth(month, year);
+                          setCalendarData(updatedDays);
+                        } catch (err) {
+                          setToast({ message: t('calendar.annotationsUpdateError'), type: 'error' });
+                        } finally {
+                          setTimeout(() => setToast(null), 3000);
+                        }
+                      }}
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white"
+                      size="sm"
+                    >
+                      {t('calendar.saveAnnotations')}
+                    </Button>
                   </div>
 
                   {/* Status Message */}

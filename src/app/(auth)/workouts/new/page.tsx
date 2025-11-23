@@ -48,9 +48,14 @@ export default function WorkoutCreatePage() {
   /**
    * Load form data from localStorage on mount.
    * This allows users to navigate to the exercise selector and back without losing data.
+   * Also supports editing existing workouts (when workoutEditId is set).
    */
   useEffect(() => {
     try {
+      // Check if this is an edit operation
+      const editId = localStorage.getItem('workoutEditId');
+      const isEdit = !!editId;
+      
       // Load exercises
       const storedExercises = localStorage.getItem('workoutFormExercises');
       if (storedExercises) {
@@ -80,6 +85,11 @@ export default function WorkoutCreatePage() {
 
       const storedIsPublic = localStorage.getItem('workoutFormIsPublic');
       if (storedIsPublic !== null) setIsPublic(storedIsPublic === 'true');
+
+      // Store edit ID in component state if editing
+      if (isEdit) {
+        // The edit ID is already in localStorage, we'll use it in handleSubmit
+      }
 
       setIsInitialized(true);
     } catch (err) {
@@ -169,12 +179,30 @@ export default function WorkoutCreatePage() {
       if (userNotes) payload.user_notes = userNotes;
       payload.is_public = isPublic; // Always include visibility setting
 
-      await workoutsApi.create(payload);
+      // Check if this is an edit operation
+      const editId = localStorage.getItem('workoutEditId');
+      if (editId) {
+        // Update existing workout
+        await workoutsApi.update(editId, payload);
+        // Clear edit ID
+        localStorage.removeItem('workoutEditId');
+        // Redirect to workout detail page
+        router.push(`/workouts/${editId}`);
+      } else {
+        // Create new workout
+        const created = await workoutsApi.create(payload);
+        // Redirect to the created workout detail page
+        if (created?.id) {
+          router.push(`/workouts/${created.id}`);
+        } else {
+          router.push('/workouts');
+        }
+      }
 
       // Show success and redirect
       setError('');
 
-      // Clear localStorage data after successful creation
+      // Clear localStorage data after successful creation/update
       localStorage.removeItem('workoutFormName');
       localStorage.removeItem('workoutFormDescription');
       localStorage.removeItem('workoutFormDifficulty');

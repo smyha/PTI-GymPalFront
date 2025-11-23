@@ -26,7 +26,7 @@ import {
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
 
   // General Settings
   const [theme, setTheme] = useState<'light' | 'dark' | 'auto'>('auto');
@@ -64,18 +64,18 @@ export default function SettingsPage() {
         if (!mounted) return;
 
         if (settings) {
-          setTheme(settings.theme);
-          setLanguage(settings.language);
-          setTimezone(settings.timezone);
+          setTheme(settings.theme || 'auto');
+          setLanguage(settings.language || 'en');
+          setTimezone(settings.timezone || 'UTC');
         }
         if (notifications) {
-          setEmailNotifications(notifications.email ? 'yes' : 'no');
-          setPushNotifications(notifications.push ? 'yes' : 'no');
+          setEmailNotifications(notifications.email === true || notifications.email === 'yes' ? 'yes' : 'no');
+          setPushNotifications(notifications.push === true || notifications.push === 'yes' ? 'yes' : 'no');
         }
         if (privacy) {
-          setProfileVisibility(privacy.profileVisibility);
-          setWorkoutVisibility(privacy.workoutVisibility);
-          setShowStats(privacy.showStats);
+          setProfileVisibility(privacy.profileVisibility || 'public');
+          setWorkoutVisibility(privacy.workoutVisibility || 'friends');
+          setShowStats(privacy.showStats !== undefined ? privacy.showStats : true);
         }
       } catch (err) {
       } finally {
@@ -155,15 +155,26 @@ export default function SettingsPage() {
       // Call the delete account endpoint
       await settingsApi.deleteAccount(userId);
 
-      // Clear localStorage and redirect to login
+      // Clear all authentication data and tokens
+      // Use logout from auth store to clear tokens properly (clears tokens, cookies, and API clients)
+      logout();
+
+      // Clear all localStorage items related to session
       localStorage.removeItem('user_name');
       localStorage.removeItem('user_email');
       localStorage.removeItem('user_id');
       localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('auth-store'); // Clear persisted auth store
 
-      // Close dialog and redirect
+      // Clear sessionStorage as well
+      sessionStorage.clear();
+
+      // Close dialog
       setShowDeleteWarning(false);
-      router.push('/login');
+      
+      // Force a full page reload and redirect to landing page to ensure all state is cleared
+      window.location.href = '/';
     } catch (err: any) {
       setError(err?.message || t('profile.settings.errorDeleting'));
       setIsDeletingAccount(false);

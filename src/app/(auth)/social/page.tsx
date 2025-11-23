@@ -99,6 +99,7 @@ export default function SocialPage() {
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [limit] = useState(10); // Load 10 posts per batch
   const [hasMore, setHasMore] = useState(true);
   const [initialReposted, setInitialReposted] = useState<Record<string, boolean>>({});
 
@@ -148,57 +149,62 @@ export default function SocialPage() {
   const loadPosts = async (pageNum: number, isRefresh = false) => {
     try {
       setLoading(true);
-      // Fetch posts and user reposts in parallel
-      const [postsRes, repostsRes] = await Promise.all([
-        socialApi.posts(pageNum), // Assuming socialApi.posts supports page
-        currentUserId ? socialApi.getUserReposts(currentUserId, pageNum).catch(() => ({ data: [] })) : Promise.resolve({ data: [] })
-      ]);
+      // Fetch posts (which now includes reposts from all users)
+      const postsRes = await socialApi.posts(pageNum, limit);
 
       // res structure: { data: [...posts], pagination: {...} }
-      const newPosts: Post[] = postsRes?.data && Array.isArray(postsRes.data) ? postsRes.data : Array.isArray(postsRes) ? postsRes : [];
+      // Posts now include both regular posts and reposts from all users
+      const allItems: Post[] = postsRes?.data && Array.isArray(postsRes.data) ? postsRes.data : Array.isArray(postsRes) ? postsRes : [];
+      
+      // Check pagination to determine if there are more posts
+      const pagination = postsRes?.pagination;
+      if (pagination) {
+        // Use pagination info from backend
+        setHasMore(pagination.hasNext || (pagination.page < pagination.totalPages));
+      } else {
+        // Fallback: if we got fewer posts than the limit, there are no more
+        setHasMore(allItems.length >= limit);
+      }
 
-      // Process reposts
-      const newReposts: Post[] = (repostsRes?.data || []).map((repost: any) => {
-        const originalPost = repost.posts;
-        if (!originalPost) return null;
-
-        const mappedOriginalPost: Post = {
-          ...originalPost,
-          userId: originalPost.user_id,
-          createdAt: originalPost.created_at,
-          author: originalPost.profiles ? {
-            id: originalPost.profiles.id,
-            username: originalPost.profiles.username,
-            fullName: originalPost.profiles.full_name,
-            avatar: originalPost.profiles.avatar_url,
-            isFollowing: originalPost.profiles.isFollowing || originalPost.author?.isFollowing || false,
-          } : undefined,
-          workout: originalPost.workouts
-        };
-
-        return {
-          id: repost.id,
-          content: '',
-          createdAt: repost.reposted_at,
-          isRepost: true,
-          repostedAt: repost.reposted_at,
-          repostedBy: currentUser ? {
-            id: currentUser.id,
-            username: currentUser.username,
-            fullName: currentUser.full_name || currentUser.fullName,
-          } : { id: 'unknown' },
-          originalPost: mappedOriginalPost,
-        } as Post;
-      }).filter(Boolean) as Post[];
-
-      const combinedItems = [...newPosts, ...newReposts];
-
-      if (combinedItems.length === 0) {
-        setHasMore(false);
-        if (!isRefresh && pageNum > 1) {
-          setLoading(false);
-          return;
+      // Process items - backend already formats reposts correctly, but we need to ensure proper mapping
+      const processedItems: Post[] = allItems.map((item: any) => {
+        // If it's already a repost from backend, use it as is
+        if (item.isRepost && item.originalPost) {
+          return {
+            id: item.id,
+            content: item.content || '',
+            likesCount: item.likesCount || item.originalPost?.likesCount || 0,
+            commentsCount: item.commentsCount || item.originalPost?.commentsCount || 0,
+            reposts_count: item.originalPost?.reposts_count || 0,
+            createdAt: item.createdAt || item.repostedAt,
+            image_urls: item.image_urls || [],
+            author: item.repostedBy,
+            isLiked: item.isLiked || item.originalPost?.isLiked || false,
+            userId: item.userId || item.originalPost?.userId,
+            workout_id: item.workout_id || item.originalPost?.workout_id,
+            workout: item.workout || item.originalPost?.workout,
+            isRepost: true,
+            repostedBy: item.repostedBy,
+            repostedAt: item.repostedAt || item.createdAt,
+            originalPost: item.originalPost,
+          } as Post;
         }
+        // Regular post
+        return item as Post;
+      });
+
+      const combinedItems = processedItems;
+
+      // If no items returned and not a refresh, stop loading more
+      if (combinedItems.length === 0 && !isRefresh && pageNum > 1) {
+        setHasMore(false);
+        setLoading(false);
+        return;
+      }
+      
+      // If we got fewer items than the limit, likely no more posts
+      if (combinedItems.length < limit && !isRefresh) {
+        setHasMore(false);
       }
 
       setPosts(prev => {
@@ -257,11 +263,11 @@ export default function SocialPage() {
         }
       });
 
-      // Also mark reposts from the explicit reposts list
-      (repostsRes?.data || []).forEach((r: any) => {
-        if (r.original_post_id) {
-          repostedState[r.original_post_id] = true;
-          initialRepostedState[r.original_post_id] = true;
+      // Mark reposts from the combined items (which now include all reposts from backend)
+      combinedItems.forEach((post: Post) => {
+        if (post.isRepost && post.originalPost?.id) {
+          repostedState[post.originalPost.id] = true;
+          initialRepostedState[post.originalPost.id] = true;
         }
       });
 
@@ -789,7 +795,7 @@ export default function SocialPage() {
                         </p>
                       )}
                       <div className="flex gap-2 mt-2">
-                        <Link href={`/workouts/${post.workout?.id || post.workout_id}`}>
+                        <Link href={`/workouts/${post.workout?.id || post.workout_id}?from=social`}>
                           <Button
                             variant="outline"
                             size="sm"
@@ -1094,7 +1100,7 @@ export default function SocialPage() {
                       </p>
                     )}
                     <div className="flex gap-2 mt-2">
-                      <Link href={`/workouts/${post.workout?.id || post.workout_id}`}>
+                      <Link href={`/workouts/${post.workout?.id || post.workout_id}?from=social`}>
                         <Button
                           variant="outline"
                           size="sm"
