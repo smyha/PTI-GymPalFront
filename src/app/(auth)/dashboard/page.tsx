@@ -21,18 +21,20 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [workoutCount, setWorkoutCount] = useState<number>(0);
   const [completedThisWeek, setCompletedThisWeek] = useState<number>(0);
+  const [exerciseCount, setExerciseCount] = useState<number>(0);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const dateStr = new Date().toISOString().split('T')[0];
-        // Load dashboard data and workout counts
-        const [ov, st, count, weekCount] = await Promise.all([
+        // Load dashboard data and workout/exercise counts
+        const [ov, st, count, weekCount, exerciseCountData] = await Promise.all([
           getDashboard().catch(() => null),
           getDashboardStats().catch(() => null),
           user?.id ? workoutsApi.getWorkoutCount(user.id).catch(() => 0) : Promise.resolve(0),
-          user?.id ? workoutsApi.getCompletedWorkoutCount(user.id, 'week', dateStr).catch(() => 0) : Promise.resolve(0)
+          user?.id ? workoutsApi.getCompletedWorkoutCount(user.id, 'week', dateStr).catch(() => 0) : Promise.resolve(0),
+          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'all', dateStr).catch(() => 0) : Promise.resolve(0)
         ]);
 
         if (!mounted) return;
@@ -40,6 +42,7 @@ export default function DashboardPage() {
         setStats(st);
         setWorkoutCount(count || 0);
         setCompletedThisWeek(weekCount || 0);
+        setExerciseCount(exerciseCountData || 0);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -51,8 +54,7 @@ export default function DashboardPage() {
   const statsData = stats?.data || {};
   
   // Dashboard overview returns: { stats: { total_workouts, total_exercises, completed_routines_this_week, streak }, recent_workouts: [], today_workout: {} }
-  // Use workoutCount from state (fetched via workoutsApi.getWorkoutCount) as primary source
-  const exerciseCount = overviewData.stats?.total_exercises || 0; // Exercises from completed routines
+  // Use workoutCount and exerciseCount from state (fetched via workoutsApi) as primary source
   const streak = overviewData.stats?.streak || 0;
   const recentWorkouts = overviewData.recent_workouts || [];
   const todayWorkout = overviewData.today_workout;
@@ -60,7 +62,7 @@ export default function DashboardPage() {
   // Use completedThisWeek from state (fetched via workoutsApi.getCompletedWorkoutCount) as primary source
   // Calculate weekly goal - default to 7 workouts per week
   const weeklyGoal = 7;
-  const progressPercent = weeklyGoal > 0 ? Math.min(100, (completedThisWeek / weeklyGoal) * 100) : 0;
+  const progressPercent = weeklyGoal > 0 ? Math.min(100, Math.max(0, (completedThisWeek / weeklyGoal) * 100)) : 0;
 
   // Get next workout from recent workouts if available, or today's workout
   const nextWorkout = todayWorkout || (recentWorkouts.length > 0 ? recentWorkouts[0] : null);
@@ -120,10 +122,10 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-2">
                 <Progress
-                  value={progressPercent}
+                  value={Number.isFinite(progressPercent) ? progressPercent : 0}
                   className="h-3 bg-slate-200 dark:bg-slate-700"
                 />
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{Math.round(progressPercent)}% complete</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{Math.round(Number.isFinite(progressPercent) ? progressPercent : 0)}% complete</p>
               </div>
             </div>
           </CardContent>

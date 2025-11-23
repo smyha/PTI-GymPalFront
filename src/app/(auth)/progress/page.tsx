@@ -35,6 +35,10 @@ export default function ProgressPage() {
   const [completedMonth, setCompletedMonth] = useState<number>(0);
   const [completedYear, setCompletedYear] = useState<number>(0);
   const [completedAll, setCompletedAll] = useState<number>(0);
+  const [exerciseCountWeek, setExerciseCountWeek] = useState<number>(0);
+  const [exerciseCountMonth, setExerciseCountMonth] = useState<number>(0);
+  const [exerciseCountYear, setExerciseCountYear] = useState<number>(0);
+  const [exerciseCountAll, setExerciseCountAll] = useState<number>(0);
 
   /**
    * Fetch all progress data on mount
@@ -46,7 +50,7 @@ export default function ProgressPage() {
       try {
         const dateStr = new Date().toISOString().split('T')[0];
         // Fetch data from various endpoints
-        const [ov, stAll, weight, weekStats, monthStats, yearStats, count, weekCount, monthCount, yearCount, allCount] = await Promise.all([
+        const [ov, stAll, weight, weekStats, monthStats, yearStats, count, weekCount, monthCount, yearCount, allCount, exWeek, exMonth, exYear, exAll] = await Promise.all([
           getDashboard().catch(() => null),
           getDashboardStats('all').catch(() => null),
           http.get<any>('/api/v1/personal/info').catch(() => null),
@@ -58,6 +62,10 @@ export default function ProgressPage() {
           user?.id ? workoutsApi.getCompletedWorkoutCount(user.id, 'month', dateStr).catch(() => 0) : Promise.resolve(0),
           user?.id ? workoutsApi.getCompletedWorkoutCount(user.id, 'year', dateStr).catch(() => 0) : Promise.resolve(0),
           user?.id ? workoutsApi.getCompletedWorkoutCount(user.id, 'all', dateStr).catch(() => 0) : Promise.resolve(0),
+          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'week', dateStr).catch(() => 0) : Promise.resolve(0),
+          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'month', dateStr).catch(() => 0) : Promise.resolve(0),
+          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'year', dateStr).catch(() => 0) : Promise.resolve(0),
+          user?.id ? workoutsApi.getCompletedExerciseCount(user.id, 'all', dateStr).catch(() => 0) : Promise.resolve(0),
         ]);
         
         if (!mounted) return;
@@ -73,6 +81,10 @@ export default function ProgressPage() {
         setCompletedMonth(monthCount || 0);
         setCompletedYear(yearCount || 0);
         setCompletedAll(allCount || 0);
+        setExerciseCountWeek(exWeek || 0);
+        setExerciseCountMonth(exMonth || 0);
+        setExerciseCountYear(exYear || 0);
+        setExerciseCountAll(exAll || 0);
       } catch (err) {
         // Error handling logic here
       } finally {
@@ -214,13 +226,41 @@ export default function ProgressPage() {
                 <p className="text-xl font-bold text-slate-900 dark:text-white">{workoutsThisMonth}</p>
               </div>
             </div>
-            <div className="flex items-center justify-between py-3">
+            <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
               <div>
                 <p className="text-slate-900 dark:text-white font-semibold">{t('progress.thisWeek')}</p>
                 <p className="text-sm text-slate-600 dark:text-slate-400">{t('progress.workouts')} {t('progress.thisWeek').toLowerCase()}</p>
               </div>
               <div className="text-right">
                 <p className="text-xl font-bold text-slate-900 dark:text-white">{workoutsThisWeek}</p>
+              </div>
+            </div>
+            {/* Exercise counts */}
+            <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
+              <div>
+                <p className="text-slate-900 dark:text-white font-semibold">{t('progress.totalExercises', { defaultValue: 'Total Exercises' })}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{t('progress.allTime')}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{exerciseCountAll}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-3 border-b border-slate-200 dark:border-slate-700">
+              <div>
+                <p className="text-slate-900 dark:text-white font-semibold">{t('progress.thisMonth')}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{t('progress.exercises', { defaultValue: 'Exercises' })} {t('progress.thisMonth').toLowerCase()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{exerciseCountMonth}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-slate-900 dark:text-white font-semibold">{t('progress.thisWeek')}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">{t('progress.exercises', { defaultValue: 'Exercises' })} {t('progress.thisWeek').toLowerCase()}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xl font-bold text-slate-900 dark:text-white">{exerciseCountWeek}</p>
               </div>
             </div>
           </div>

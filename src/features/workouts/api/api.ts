@@ -298,6 +298,28 @@ export async function getCompletedWorkoutCount(userId: string, period: 'week' | 
 }
 
 /**
+ * Get completed exercise count for a user by period
+ * @param userId - User ID
+ * @param period - Period: 'week', 'month', 'year', or 'all'
+ * @param date - Optional reference date (YYYY-MM-DD format)
+ */
+export async function getCompletedExerciseCount(userId: string, period: 'week' | 'month' | 'year' | 'all' = 'all', date?: string) {
+  const dateStr = date || new Date().toISOString().split('T')[0];
+  const endpoint = `/api/v1/workouts/users/${userId}/completed-exercises-count?period=${period}&date=${dateStr}`;
+  apiLogger.info({ endpoint, period, date: dateStr }, 'Get completed exercise count request');
+  try {
+    const wrappedRes = await http.get<ApiResponse<{ count: number; period: string }>>(endpoint);
+    const data = wrappedRes?.data;
+    if (data === undefined) throw new Error('No count in response');
+    apiLogger.info({ count: data.count, period }, 'Get completed exercise count success');
+    return data.count;
+  } catch (err) {
+    logError(err as Error, { endpoint, period });
+    throw err;
+  }
+}
+
+/**
  * Workouts API object for convenience
  */
 export const workoutsApi = {
@@ -310,4 +332,5 @@ export const workoutsApi = {
   addToday: addWorkoutToday,
   getWorkoutCount: getWorkoutCount,
   getCompletedWorkoutCount: getCompletedWorkoutCount,
+  getCompletedExerciseCount: getCompletedExerciseCount,
 };
