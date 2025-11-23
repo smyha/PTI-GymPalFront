@@ -19,7 +19,7 @@ export type DashboardData = {
  * Get dashboard overview (stats and recent activity)
  */
 export async function getDashboard() {
-  const date = new Date().toISOString().split('T')[0];
+  const date = new Date().toISOString().split('T')[0] || '';
   apiLogger.info({ endpoint: '/api/v1/dashboard', date }, 'Get dashboard request');
   try {
     const wrappedRes = await http.get<ApiResponse<any>>(`/api/v1/dashboard?date=${date}`);
@@ -40,15 +40,17 @@ export async function getDashboard() {
  * Get dashboard statistics with optional timeframe
  */
 export async function getDashboardStats(timeframe: 'week' | 'month' | 'year' | 'all' = 'all', includeSocial: boolean = true) {
-  const date = new Date().toISOString().split('T')[0];
+  const dateStr = new Date().toISOString().split('T')[0];
+  const date = dateStr || '';
+  
   apiLogger.info({ endpoint: '/api/v1/dashboard/stats', period: timeframe, includeSocial, date }, 'Get dashboard stats request');
   try {
-    const params = new URLSearchParams({
-      period: timeframe,
-      include_social: includeSocial.toString(),
-      date,
-    });
-    const wrappedRes = await http.get<ApiResponse<Unified.DashboardStats>>(`/api/v1/dashboard/stats?${params}`);
+    const params = new URLSearchParams();
+    params.append('period', timeframe);
+    params.append('include_social', includeSocial.toString());
+    params.append('date', date);
+
+    const wrappedRes = await http.get<ApiResponse<Unified.DashboardStats>>(`/api/v1/dashboard/stats?${params.toString()}`);
     const rawData = wrappedRes?.data;
     if (!rawData) throw new Error('No stats data in response');
 
@@ -69,10 +71,9 @@ export async function getDashboardActivity(limit: number = 20, offset: number = 
   if (limit > 100) limit = 100;
   apiLogger.info({ endpoint: '/api/v1/dashboard/activity', limit, offset }, 'Get dashboard activity request');
   try {
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      offset: offset.toString(),
-    });
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
     const wrappedRes = await http.get<ApiResponse<any[]>>(`/api/v1/dashboard/activity?${params}`);
     const rawData = wrappedRes?.data;
     if (!rawData) throw new Error('No activity data in response');

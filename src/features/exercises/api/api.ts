@@ -75,13 +75,18 @@ export async function listExercises(page: number = 1, limit: number = 10, filter
 }) {
   apiLogger.info({ endpoint: '/api/v1/exercises', page, limit, filters }, 'List exercises request');
   try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(filters?.category && { category: filters.category }),
-      ...(filters?.muscleGroup && { muscleGroup: filters.muscleGroup }),
-      ...(filters?.equipment && { equipment: filters.equipment }),
-    });
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (filters?.category) {
+      params.append('category', filters.category);
+    }
+    if (filters?.muscleGroup) {
+      params.append('muscleGroup', filters.muscleGroup);
+    }
+    if (filters?.equipment) {
+      params.append('equipment', filters.equipment);
+    }
     const wrappedRes = await http.get<any>(`/api/v1/exercises?${params}`);
 
     // Handle the response which has structure: { success, data: [...], pagination: {...}, metadata: {...} }

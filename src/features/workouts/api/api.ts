@@ -68,12 +68,15 @@ export async function listWorkouts(
   apiLogger.info({ endpoint, page, limit, filters }, 'Listing workouts');
 
   try {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-      ...(filters?.search && { search: filters.search }),
-      ...(filters?.difficulty && { difficulty: filters.difficulty }),
-    });
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (filters?.search) {
+      params.append('search', filters.search);
+    }
+    if (filters?.difficulty) {
+      params.append('difficulty', filters.difficulty);
+    }
 
     const response = await http.get<ApiResponse<Unified.PaginatedList<Unified.Workout>>>(
       `${endpoint}?${params}`
