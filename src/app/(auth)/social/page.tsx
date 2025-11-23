@@ -770,7 +770,7 @@ export default function SocialPage() {
                     className={reposted[post.id] ? 'text-emerald-500' : 'text-slate-600 dark:text-slate-400 hover:text-emerald-500'}
                   >
                     <Repeat2 className={`h-4 w-4 mr-2 ${reposted[post.id] ? 'fill-emerald-500' : ''}`} />
-                    {(post.reposts_count || 0) + (reposted[post.id] && !initialReposted[post.id] ? 1 : 0) - (!reposted[post.id] && initialReposted[post.id] ? 1 : 0)}
+                    {Math.max(0, (post.reposts_count || 0) + (reposted[post.id] && !initialReposted[post.id] ? 1 : 0) - (!reposted[post.id] && initialReposted[post.id] ? 1 : 0))}
                   </Button>
                 </div>
                   {/* Comments Section */}
@@ -1064,7 +1064,7 @@ export default function SocialPage() {
                     className={reposted[post.id] ? 'text-emerald-500' : 'text-slate-600 dark:text-slate-400 hover:text-emerald-500'}
                   >
                     <Repeat2 className={`h-4 w-4 mr-2 ${reposted[post.id] ? 'fill-emerald-500' : ''}`} />
-                    {(post.reposts_count || 0) + (reposted[post.id] && !initialReposted[post.id] ? 1 : 0) - (!reposted[post.id] && initialReposted[post.id] ? 1 : 0)}
+                    {Math.max(0, (post.reposts_count || 0) + (reposted[post.id] && !initialReposted[post.id] ? 1 : 0) - (!reposted[post.id] && initialReposted[post.id] ? 1 : 0))}
                   </Button>
                 </div>
               {/* Comments Section */}
