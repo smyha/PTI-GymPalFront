@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MessageCircle, Send, Loader2, Maximize2 } from 'lucide-react';
 import { aiChatApi } from '@/features/ai-chat/api/ai-chat.api';
 import Link from 'next/link';
+import { AiMarkdown } from '@/components/shared/AiMarkdown';
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -12,10 +13,16 @@ export default function ChatWidget() {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
     { role: 'assistant', content: 'Hola, soy tu asistente GymPal. ¿En qué te ayudo?' },
   ]);
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth',
+    });
   }, [messages, open]);
 
   const send = async () => {
@@ -58,17 +65,23 @@ export default function ChatWidget() {
               Online
             </span>
           </div>
-          <div className="flex-1 p-3 overflow-auto space-y-2">
+          <div ref={scrollContainerRef} className="flex-1 p-3 overflow-auto space-y-2">
             {messages.map((m, i) => (
-              <div key={i} className={`text-sm p-2 rounded-lg ${
-                m.role === 'assistant' 
-                  ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 mr-8' 
-                  : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 ml-8 text-right'
-              }`}>
-                {m.content}
+              <div
+                key={i}
+                className={`text-sm p-2 rounded-lg ${
+                  m.role === 'assistant'
+                    ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 mr-8'
+                    : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 ml-8 text-right'
+                }`}
+              >
+                {m.role === 'assistant' ? (
+                  <AiMarkdown content={m.content} />
+                ) : (
+                  <span className="whitespace-pre-wrap break-words">{m.content}</span>
+                )}
               </div>
             ))}
-            <div ref={endRef} />
           </div>
           <div className="p-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
             <input 

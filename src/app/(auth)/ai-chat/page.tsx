@@ -14,6 +14,7 @@ import { aiChatApi } from '@/features/ai-chat/api/ai-chat.api';
 import { toast } from 'sonner';
 import { profileApi } from '@/features/profile/api/profile.api';
 import { format } from 'date-fns';
+import { AiMarkdown } from '@/components/shared/AiMarkdown';
 
 /**
  * AIChatPage Component
@@ -47,7 +48,7 @@ export default function AIChatPage() {
   
   // Refs for speech recognition and auto-scrolling
   const recognitionRef = useRef<any>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesViewportRef = useRef<HTMLDivElement | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
@@ -214,15 +215,22 @@ export default function AIChatPage() {
   };
 
   /**
-   * Scroll chat view to bottom
+   * Scroll chat view to bottom when receiving messages
    */
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isInitialLoading) return;
+
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+    const behavior: ScrollBehavior = distanceFromBottom < 150 ? 'smooth' : 'auto';
+
+    viewport.scrollTo({
+      top: viewport.scrollHeight,
+      behavior,
+    });
+  }, [messages, isInitialLoading]);
 
   /**
    * Create a new empty conversation
@@ -418,10 +426,10 @@ export default function AIChatPage() {
       </div>
 
       {/* Chat Container */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-280px)] min-h-[500px]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:h-[calc(100vh-260px)] lg:min-h-[520px]">
         
         {/* Sidebar - Conversations List */}
-        <Card className="bg-white/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 lg:col-span-1 flex flex-col overflow-hidden h-full">
+        <Card className="bg-white/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 lg:col-span-1 flex flex-col overflow-hidden lg:h-full">
           <div className="p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
             <Button 
               onClick={handleCreateNewChat}
@@ -431,51 +439,54 @@ export default function AIChatPage() {
               New Chat
             </Button>
           </div>
-          <ScrollArea className="flex-1 h-full">
-            <div className="p-2 space-y-1">
-              {conversations.map((conv) => (
-                <div
-                  key={conv.id}
-                  onClick={() => handleSelectConversation(conv.id)}
-                  className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
-                    currentConversationId === conv.id
-                      ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
-                      : 'hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <MessageSquare className="h-4 w-4 flex-shrink-0" />
-                    <div className="flex flex-col overflow-hidden">
-                      <span className="truncate text-sm font-medium">{conv.title || 'New Chat'}</span>
-                      <span className="text-xs text-slate-500 dark:text-slate-500">
-                        {format(new Date(conv.created_at), 'MMM d, HH:mm')}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
-                    onClick={(e) => handleDeleteChat(e, conv.id)}
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-full">
+              <div className="p-2 space-y-1">
+                {conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    onClick={() => handleSelectConversation(conv.id)}
+                    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors group ${
+                      currentConversationId === conv.id
+                        ? 'bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-700 dark:text-slate-300'
+                    }`}
                   >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-              {conversations.length === 0 && (
-                <div className="text-center p-4 text-slate-500 text-sm">
-                  No conversations yet
-                </div>
-              )}
-            </div>
-          </ScrollArea>
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                      <div className="flex flex-col overflow-hidden">
+                        <span className="truncate text-sm font-medium">{conv.title || 'New Chat'}</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-500">
+                          {format(new Date(conv.created_at), 'MMM d, HH:mm')}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-500"
+                      onClick={(e) => handleDeleteChat(e, conv.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                {conversations.length === 0 && (
+                  <div className="text-center p-4 text-slate-500 text-sm">
+                    No conversations yet
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         </Card>
 
         {/* Main Chat Area */}
-        <Card className="bg-white/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 lg:col-span-3 flex flex-col overflow-hidden h-full">
-          <CardContent className="p-0 flex-1 flex flex-col h-full min-h-0">
+        <Card className="bg-white/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 lg:col-span-3 flex flex-col overflow-hidden min-h-[550px] lg:h-full">
+          <CardContent className="p-0 flex-1 flex flex-col min-h-0">
             {/* Messages */}
-            <ScrollArea className="flex-1 p-6 h-full">
+            <div className="flex-1 min-h-0">
+              <ScrollArea ref={messagesViewportRef} className="h-full p-6">
               {isInitialLoading ? (
                 <div className="flex h-full items-center justify-center">
                   <div className="flex flex-col items-center gap-4">
@@ -510,14 +521,18 @@ export default function AIChatPage() {
                           : 'bg-slate-100 dark:bg-slate-700/50 text-slate-900 dark:text-slate-200'
                       }`}
                     >
-                      {message.content}
+                      {message.role === 'assistant' ? (
+                        <AiMarkdown content={message.content} />
+                      ) : (
+                        <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                      )}
                     </div>
                   </div>
                 ))}
-                <div ref={messagesEndRef} />
               </div>
-              )}
-            </ScrollArea>
+                )}
+              </ScrollArea>
+            </div>
 
             {/* Suggested Prompts - shown when no user messages */}
             {messages.length === 1 && (
